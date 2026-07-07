@@ -1,0 +1,121 @@
+.login-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.field-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field-group label {
+  color: var(--color-heading);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.input-control {
+  display: flex;
+  min-height: 3.125rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.input-control:focus-within {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 4px var(--color-focus);
+}
+
+.input-control--error {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.input-control input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.input-control input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  color: var(--color-heading);
+  background: var(--color-primary-soft);
+  outline: none;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.primary-button {
+  display: inline-flex;
+  min-height: 3.125rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  background: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.primary-button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.primary-button:disabled {
+  opacity: 0.55;
+}
+
+@media (max-width: 380px) {
+  .login-form {
+    gap: var(--space-4);
+  }
+
+  .input-control {
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+  }
+}
