@@ -60,7 +60,7 @@
 
 @media (max-height: 720px) and (min-width: 641px) {
   .login-page {
-    align-items: start;
+    align-items: center;
     padding-block: var(--space-5);
   }
 }

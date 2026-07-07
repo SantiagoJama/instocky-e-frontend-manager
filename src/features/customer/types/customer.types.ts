@@ -78,15 +78,19 @@ export type SubscriptionPayload = {
   general_user: number
 }
 
-export type CreateCustomerPayload = {
-  customer: Omit<Customer, 'id' | 'created_at'>
-  customer_contact: CustomerContact
+export type CreateBusinessPayload = {
   business: Omit<Business, 'id' | 'created_at' | 'is_active'>
   business_location: Omit<BusinessLocation, 'id'>
   business_contact: BusinessContact
   business_module: number[]
   business_user: BusinessUserPayload[]
   subscription: SubscriptionPayload
+}
+
+export type CreateCustomerPayload = {
+  customer: Omit<Customer, 'id' | 'created_at'>
+  customer_contact: CustomerContact
+  businesses: CreateBusinessPayload[]
 }
 
 export type UpdateCustomerPayload = {

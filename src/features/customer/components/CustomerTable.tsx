@@ -11,6 +11,8 @@ import type {
 } from '../types/customer.types'
 import './CustomerComponents.css'
 
+type ValidationErrors = Record<string, string>
+
 type EditState = {
   customer: {
     identification: string
@@ -162,6 +164,8 @@ function CustomerEditModal({
   const [form, setForm] = useState<EditState>(() => toEditState(customerAggregate))
   const [isSaving, setIsSaving] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+  const validationErrors = validateEditForm(form, submitAttempted)
 
   function requestClose() {
     setIsClosing(true)
@@ -169,30 +173,42 @@ function CustomerEditModal({
   }
 
   function updateCustomer(field: keyof EditState['customer'], value: string | boolean) {
+    const nextValue = typeof value === 'string' ? sanitizeCustomerValue(field, value) : value
+
     setForm((current) => ({
       ...current,
       customer: {
         ...current.customer,
-        [field]: value,
+        [field]: nextValue,
       },
     }))
   }
 
   function updateContact(field: keyof CustomerContact, value: string) {
+    const nextValue = sanitizeContactValue(field, value)
+
     setForm((current) => ({
       ...current,
       customer_contact: {
         ...current.customer_contact,
-        [field]: value,
+        [field]: nextValue,
       },
     }))
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSubmitAttempted(true)
 
     if (!accessToken) {
       await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
+      return
+    }
+
+    const submitErrors = validateEditForm(form, true)
+
+    if (Object.keys(submitErrors).length > 0) {
+      await Swal.fire('Formulario incompleto', 'Revisa los campos marcados en rojo antes de guardar.', 'warning')
       return
     }
 
@@ -235,11 +251,11 @@ function CustomerEditModal({
           <fieldset className="form-section">
             <legend>Customer</legend>
             <div className="form-grid">
-              <TextInput label="Identification" value={form.customer.identification} required onChange={(value) => updateCustomer('identification', value)} />
-              <TextInput label="First name" value={form.customer.first_name} required onChange={(value) => updateCustomer('first_name', value)} />
-              <TextInput label="Last name" value={form.customer.last_name} required onChange={(value) => updateCustomer('last_name', value)} />
-              <TextInput label="Country" value={form.customer.country} required onChange={(value) => updateCustomer('country', value)} />
-              <TextInput label="City" value={form.customer.city} required onChange={(value) => updateCustomer('city', value)} />
+              <TextInput label="Identification" value={form.customer.identification} required error={validationErrors['customer.identification']} onChange={(value) => updateCustomer('identification', value)} />
+              <TextInput label="First name" value={form.customer.first_name} required error={validationErrors['customer.first_name']} onChange={(value) => updateCustomer('first_name', value)} />
+              <TextInput label="Last name" value={form.customer.last_name} required error={validationErrors['customer.last_name']} onChange={(value) => updateCustomer('last_name', value)} />
+              <TextInput label="Country" value={form.customer.country} required error={validationErrors['customer.country']} onChange={(value) => updateCustomer('country', value)} />
+              <TextInput label="City" value={form.customer.city} required error={validationErrors['customer.city']} onChange={(value) => updateCustomer('city', value)} />
               <label className="check-field">
                 <input
                   type="checkbox"
@@ -254,9 +270,9 @@ function CustomerEditModal({
           <fieldset className="form-section">
             <legend>Customer contact</legend>
             <div className="form-grid">
-              <TextInput label="Mobile phone" value={form.customer_contact.mobile_phone_number} required onChange={(value) => updateContact('mobile_phone_number', value)} />
-              <TextInput label="Base phone" value={form.customer_contact.base_phone_number} required onChange={(value) => updateContact('base_phone_number', value)} />
-              <TextInput label="Email" type="email" value={form.customer_contact.email} required onChange={(value) => updateContact('email', value)} />
+              <TextInput label="Mobile phone" value={form.customer_contact.mobile_phone_number} required error={validationErrors['customer_contact.mobile_phone_number']} onChange={(value) => updateContact('mobile_phone_number', value)} />
+              <TextInput label="Base phone" value={form.customer_contact.base_phone_number} required error={validationErrors['customer_contact.base_phone_number']} onChange={(value) => updateContact('base_phone_number', value)} />
+              <TextInput label="Email" type="email" value={form.customer_contact.email} required error={validationErrors['customer_contact.email']} onChange={(value) => updateContact('email', value)} />
             </div>
           </fieldset>
 
@@ -279,12 +295,14 @@ function TextInput({
   value,
   type = 'text',
   required = false,
+  error,
   onChange,
 }: {
   label: string
   value: string
   type?: string
   required?: boolean
+  error?: string
   onChange: (value: string) => void
 }) {
   return (
@@ -294,9 +312,11 @@ function TextInput({
         type={type}
         value={value}
         required={required}
+        aria-invalid={Boolean(error)}
         placeholder={getPlaceholder(label, type)}
         onChange={(event) => onChange(event.target.value)}
       />
+      {error ? <small className="field-error">{error}</small> : null}
     </label>
   )
 }
@@ -341,4 +361,132 @@ function toUpdatePayload(form: EditState): UpdateCustomerPayload {
       email: form.customer_contact.email.trim().toLowerCase(),
     },
   }
+}
+
+function validateEditForm(form: EditState, includeRequired: boolean): ValidationErrors {
+  const errors: ValidationErrors = {}
+
+  validateText(errors, 'customer.identification', form.customer.identification, {
+    includeRequired,
+    label: 'Identification',
+    pattern: /^[A-Za-z0-9]{1,15}$/,
+    message: 'Solo letras y digitos, maximo 15 caracteres.',
+  })
+  validateLetters(errors, 'customer.first_name', form.customer.first_name, includeRequired, 'First name')
+  validateLetters(errors, 'customer.last_name', form.customer.last_name, includeRequired, 'Last name')
+  validateLetters(errors, 'customer.country', form.customer.country, includeRequired, 'Country')
+  validateLetters(errors, 'customer.city', form.customer.city, includeRequired, 'City')
+  validatePhone(errors, 'customer_contact.mobile_phone_number', form.customer_contact.mobile_phone_number, includeRequired)
+  validateBasePhone(errors, 'customer_contact.base_phone_number', form.customer_contact.base_phone_number, includeRequired)
+  validateEmail(errors, 'customer_contact.email', form.customer_contact.email, includeRequired)
+
+  return errors
+}
+
+function validateText(
+  errors: ValidationErrors,
+  path: string,
+  value: string,
+  options: { includeRequired: boolean; label: string; pattern: RegExp; message: string },
+) {
+  if (!value.trim()) {
+    if (options.includeRequired) {
+      errors[path] = `${options.label} es obligatorio.`
+    }
+    return
+  }
+
+  if (!options.pattern.test(value.trim())) {
+    errors[path] = options.message
+  }
+}
+
+function validateLetters(
+  errors: ValidationErrors,
+  path: string,
+  value: string,
+  includeRequired: boolean,
+  label: string,
+) {
+  validateText(errors, path, value, {
+    includeRequired,
+    label,
+    pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+$/,
+    message: 'Solo se permiten letras y espacios.',
+  })
+}
+
+function validatePhone(
+  errors: ValidationErrors,
+  path: string,
+  value: string,
+  includeRequired: boolean,
+  label = 'Mobile phone',
+) {
+  validateText(errors, path, value, {
+    includeRequired,
+    label,
+    pattern: /^\d{1,15}$/,
+    message: 'Solo digitos, maximo 15.',
+  })
+}
+
+function validateBasePhone(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
+  validateText(errors, path, value, {
+    includeRequired,
+    label: 'Base phone',
+    pattern: /^(N\/A|\d{1,15})$/,
+    message: 'Usa N/A o solo digitos, maximo 15.',
+  })
+}
+
+function validateEmail(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
+  validateText(errors, path, value, {
+    includeRequired,
+    label: 'Email',
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+    message: 'Ingresa un email valido.',
+  })
+}
+
+function sanitizeCustomerValue(field: keyof EditState['customer'], value: string) {
+  if (field === 'identification') {
+    return value.replace(/[^A-Za-z0-9]/g, '').slice(0, 15)
+  }
+
+  if (['first_name', 'last_name', 'country', 'city'].includes(field)) {
+    return onlyLetters(value)
+  }
+
+  return value
+}
+
+function sanitizeContactValue(field: keyof CustomerContact, value: string) {
+  if (field === 'mobile_phone_number') {
+    return onlyDigits(value, 15)
+  }
+
+  if (field === 'base_phone_number') {
+    return sanitizeBasePhone(value)
+  }
+
+  return value
+}
+
+function onlyLetters(value: string) {
+  return value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü ]/g, '')
+}
+
+function onlyDigits(value: string, maxLength: number) {
+  return value.replace(/\D/g, '').slice(0, maxLength)
+}
+
+function sanitizeBasePhone(value: string) {
+  const upperValue = value.toUpperCase()
+
+  if ('N/A'.startsWith(upperValue)) {
+    return upperValue
+  }
+
+  return onlyDigits(value, 15)
 }
