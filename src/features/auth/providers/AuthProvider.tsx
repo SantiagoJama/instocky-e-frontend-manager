@@ -4,6 +4,16 @@ import { clearStoredSession, getStoredSession, saveStoredSession } from '../serv
 import type { AuthUser, LoginCredentials } from '../types/auth.types'
 import { AuthContext } from './context'
 
+let restoreSessionRequest: ReturnType<typeof refreshAccessTokenRequest> | null = null
+
+function restoreAccessTokenOnce() {
+  restoreSessionRequest ??= refreshAccessTokenRequest().finally(() => {
+    restoreSessionRequest = null
+  })
+
+  return restoreSessionRequest
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredSession())
   const [accessToken, setAccessToken] = useState<string | null>(null)
@@ -21,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const response = await refreshAccessTokenRequest()
+        const response = await restoreAccessTokenOnce()
 
         if (!isMounted) {
           return

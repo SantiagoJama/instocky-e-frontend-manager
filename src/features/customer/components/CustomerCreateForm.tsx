@@ -5,6 +5,12 @@ import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useBusinessModules } from '../hooks/useBusinessModules'
 import { createCustomerRequest } from '../services/customerApi'
+import {
+  BASE_MONTHLY_PAYMENT,
+  EXTRA_USER_MONTHLY_COST,
+  INCLUDED_ADMIN_USERS,
+  INCLUDED_GENERAL_USERS,
+} from '../constants/subscriptionPricing'
 import type {
   BusinessUserPayload,
   CreateBusinessPayload,
@@ -50,10 +56,10 @@ function createEmptyBusiness(): CreateBusinessPayload {
     subscription: {
       subscription_type: 'TRIAL',
       trial_days: 21,
-      monthly_payment: 35,
-      how_many_users: 2,
-      admin_user: 1,
-      general_user: 1,
+      monthly_payment: BASE_MONTHLY_PAYMENT,
+      how_many_users: INCLUDED_ADMIN_USERS + INCLUDED_GENERAL_USERS,
+      admin_user: INCLUDED_ADMIN_USERS,
+      general_user: INCLUDED_GENERAL_USERS,
     },
   }
 }
@@ -74,6 +80,43 @@ function createInitialForm(): CreateCustomerPayload {
       email: '',
     },
     businesses: [createEmptyBusiness()],
+  }
+}
+
+function getSubscriptionPricing(users: BusinessUserPayload[]) {
+  const adminUsers = Math.max(
+    INCLUDED_ADMIN_USERS,
+    users.filter((user) => user.rol === 'Admin').length,
+  )
+  const generalUsers = Math.max(
+    INCLUDED_GENERAL_USERS,
+    users.filter((user) => user.rol === 'General').length,
+  )
+  const extraUsers = adminUsers - INCLUDED_ADMIN_USERS + generalUsers - INCLUDED_GENERAL_USERS
+  const extraMonthlyCost = extraUsers * EXTRA_USER_MONTHLY_COST
+
+  return {
+    adminUsers,
+    generalUsers,
+    extraUsers,
+    extraMonthlyCost,
+    monthlyPayment: BASE_MONTHLY_PAYMENT + extraMonthlyCost,
+    totalUsers: adminUsers + generalUsers,
+  }
+}
+
+function withCalculatedSubscription(business: CreateBusinessPayload): CreateBusinessPayload {
+  const pricing = getSubscriptionPricing(business.business_user)
+
+  return {
+    ...business,
+    subscription: {
+      ...business.subscription,
+      monthly_payment: pricing.monthlyPayment,
+      how_many_users: pricing.totalUsers,
+      admin_user: pricing.adminUsers,
+      general_user: pricing.generalUsers,
+    },
   }
 }
 
@@ -156,12 +199,12 @@ export function CustomerCreateForm() {
       ...current,
       businesses: current.businesses.map((business, index) =>
         index === businessIndex
-          ? {
+          ? withCalculatedSubscription({
               ...business,
               business_user: business.business_user.map((user, currentUserIndex) =>
                 currentUserIndex === userIndex ? { ...user, [field]: nextValue } : user,
               ),
-            }
+            })
           : business,
       ),
     }))
@@ -189,10 +232,10 @@ export function CustomerCreateForm() {
       ...current,
       businesses: current.businesses.map((business, index) =>
         index === businessIndex
-          ? {
+          ? withCalculatedSubscription({
               ...business,
               business_user: [...business.business_user, { ...emptyUser, rol: 'General' }],
-            }
+            })
           : business,
       ),
     }))
@@ -207,13 +250,13 @@ export function CustomerCreateForm() {
       ...current,
       businesses: current.businesses.map((business, index) =>
         index === businessIndex
-          ? {
+          ? withCalculatedSubscription({
               ...business,
               business_user:
                 business.business_user.length === 1
                   ? business.business_user
                   : business.business_user.filter((_, currentUserIndex) => currentUserIndex !== userIndex),
-            }
+            })
           : business,
       ),
     }))
@@ -307,7 +350,8 @@ export function CustomerCreateForm() {
               <input
                 type="checkbox"
                 checked={form.customer.is_active}
-                onChange={(event) => updateCustomerField('customer', 'is_active', event.target.checked)}
+                readOnly
+                disabled
               />
               Active customer
             </label>
@@ -411,6 +455,10 @@ export function CustomerCreateForm() {
 
                 <fieldset className="form-section">
                   <legend>Business users</legend>
+                  <p className="pricing-note">
+                    El monthly payment incluye {INCLUDED_ADMIN_USERS} admin user y {INCLUDED_GENERAL_USERS} general user.
+                    Cada usuario adicional cuesta ${EXTRA_USER_MONTHLY_COST} por mes.
+                  </p>
                   <div className="user-list">
                     {businessItem.business_user.map((user, userIndex) => (
                       <div className="user-row" key={userIndex}>
@@ -456,6 +504,11 @@ export function CustomerCreateForm() {
 
                 <fieldset className="form-section">
                   <legend>Subscription</legend>
+                  <p className="pricing-note">
+                    Monthly payment base: ${BASE_MONTHLY_PAYMENT}. Usuarios extra:{' '}
+                    {getSubscriptionPricing(businessItem.business_user).extraUsers} / Costo mensual adicional: $
+                    {getSubscriptionPricing(businessItem.business_user).extraMonthlyCost}.
+                  </p>
                   <div className="form-grid">
                     <label className="input-field">
                       <span>Type</span>
@@ -468,10 +521,10 @@ export function CustomerCreateForm() {
                       </select>
                     </label>
                     <NumberInput label="Trial days" value={businessItem.subscription.trial_days} min={1} max={365} error={validationErrors[businessPath('subscription.trial_days')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'trial_days', value)} />
-                    <NumberInput label="Monthly payment" value={businessItem.subscription.monthly_payment} min={0} step="0.01" error={validationErrors[businessPath('subscription.monthly_payment')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'monthly_payment', value)} />
-                    <NumberInput label="How many users" value={businessItem.subscription.how_many_users} min={1} error={validationErrors[businessPath('subscription.how_many_users')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'how_many_users', value)} />
-                    <NumberInput label="Admin users" value={businessItem.subscription.admin_user} min={0} error={validationErrors[businessPath('subscription.admin_user')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'admin_user', value)} />
-                    <NumberInput label="General users" value={businessItem.subscription.general_user} min={0} error={validationErrors[businessPath('subscription.general_user')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'general_user', value)} />
+                    <NumberInput label="Monthly payment" value={businessItem.subscription.monthly_payment} min={0} step="0.01" readOnly error={validationErrors[businessPath('subscription.monthly_payment')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'monthly_payment', value)} />
+                    <NumberInput label="How many users" value={businessItem.subscription.how_many_users} min={1} readOnly error={validationErrors[businessPath('subscription.how_many_users')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'how_many_users', value)} />
+                    <NumberInput label="Admin users" value={businessItem.subscription.admin_user} min={0} readOnly error={validationErrors[businessPath('subscription.admin_user')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'admin_user', value)} />
+                    <NumberInput label="General users" value={businessItem.subscription.general_user} min={0} readOnly error={validationErrors[businessPath('subscription.general_user')]} onChange={(value) => updateBusinessField(businessIndex, 'subscription', 'general_user', value)} />
                   </div>
                   {!businessLimitMatches ? <p className="form-alert">how_many_users debe ser igual a admin_user + general_user.</p> : null}
                 </fieldset>
@@ -545,6 +598,7 @@ function NumberInput({
   max,
   step = 1,
   error,
+  readOnly = false,
 }: {
   label: string
   value: number
@@ -552,6 +606,7 @@ function NumberInput({
   max?: number
   step?: number | string
   error?: string
+  readOnly?: boolean
   onChange: (value: number) => void
 }) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -567,6 +622,7 @@ function NumberInput({
         min={min}
         max={max}
         step={step}
+        readOnly={readOnly}
         aria-invalid={Boolean(error)}
         placeholder={getPlaceholder(label, 'number')}
         onChange={handleChange}

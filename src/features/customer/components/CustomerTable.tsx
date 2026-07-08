@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { FiEdit2, FiRefreshCw } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
@@ -168,11 +168,13 @@ function CustomerEditModal({
 }) {
   const { accessToken } = useAuth()
   const logoutOnUnauthorized = useLogoutOnUnauthorized()
+  const initialForm = useMemo(() => toEditState(customerAggregate), [customerAggregate])
   const [form, setForm] = useState<EditState>(() => toEditState(customerAggregate))
   const [isSaving, setIsSaving] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const validationErrors = validateEditForm(form, submitAttempted)
+  const hasChanges = useMemo(() => !areEditStatesEqual(form, initialForm), [form, initialForm])
 
   function requestClose() {
     setIsClosing(true)
@@ -209,6 +211,10 @@ function CustomerEditModal({
 
     if (!accessToken) {
       await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
+      return
+    }
+
+    if (!hasChanges) {
       return
     }
 
@@ -268,7 +274,8 @@ function CustomerEditModal({
                 <input
                   type="checkbox"
                   checked={form.customer.is_active}
-                  onChange={(event) => updateCustomer('is_active', event.target.checked)}
+                  readOnly
+                  disabled
                 />
                 Active customer
               </label>
@@ -288,7 +295,7 @@ function CustomerEditModal({
             <button className="secondary-button" type="button" onClick={requestClose}>
               Cancel
             </button>
-            <button className="primary-action" type="submit" disabled={isSaving}>
+            <button className="primary-action" type="submit" disabled={isSaving || !hasChanges}>
               {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -342,6 +349,10 @@ function getPlaceholder(label: string, type: string) {
   }
 
   return examples[label] ?? (type === 'email' ? 'Ej: user@example.com' : 'Escribe un valor')
+}
+
+function areEditStatesEqual(left: EditState, right: EditState) {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 function toEditState(customerAggregate: CustomerAggregate): EditState {

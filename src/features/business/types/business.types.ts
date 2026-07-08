@@ -67,6 +67,8 @@ export type BusinessModule = {
   created_at: string
 }
 
+export type AvailableBusinessModule = Omit<BusinessModule, 'is_active'>
+
 export type BusinessSubscription = {
   id: string
   subscription_type: 'TRIAL' | 'MONTHLY'

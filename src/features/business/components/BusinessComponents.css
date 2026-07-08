@@ -69,8 +69,8 @@
 }
 
 .business-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 2.5rem);
   gap: var(--space-2);
 }
 
@@ -185,6 +185,7 @@
 }
 
 .business-edit-form,
+.business-modules-panel,
 .business-users-panel {
   display: grid;
   gap: var(--space-5);
@@ -333,6 +334,12 @@
   background: var(--color-danger-soft);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+}
+
+.module-helper {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .info-list {

@@ -14,7 +14,7 @@ export function ProtectedView({ children }: { children: ReactNode }) {
               IM
             </span>
             <div>
-              <p className="login-brand__eyebrow">Admin console</p>
+              <p className="login-brand__eyebrow">Instocky - Admin Console</p>
               <h1>Restaurando sesion</h1>
             </div>
           </div>

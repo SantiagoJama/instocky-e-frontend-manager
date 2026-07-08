@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   FiCreditCard,
   FiEdit2,
@@ -16,15 +16,18 @@ import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useBusinesses } from '../hooks/useBusinesses'
 import {
+  addBusinessModuleRequest,
   changeBusinessUserPasswordRequest,
   createBusinessUserRequest,
   inactivateBusinessUserRequest,
+  listAvailableBusinessModulesRequest,
   updateBusinessModuleStatusRequest,
   updateBusinessRequest,
   updateBusinessStatusRequest,
   updateBusinessUserRequest,
 } from '../services/businessApi'
 import type {
+  AvailableBusinessModule,
   BusinessAggregate,
   BusinessContact,
   BusinessLocation,
@@ -139,7 +142,6 @@ export function BusinessTable() {
               <th>Contact</th>
               <th>Location</th>
               <th>RUC</th>
-              <th>Tenant</th>
               <th>Status</th>
               <th>Created</th>
               <th>Actions</th>
@@ -173,7 +175,6 @@ export function BusinessTable() {
                   <small>{item.business_location.address1}</small>
                 </td>
                 <td>{item.business.ruc}</td>
-                <td>{item.business.tenant_name}</td>
                 <td>{item.business.is_active ? 'Active' : 'Inactive'}</td>
                 <td>{formatSafeDate(item.business.created_at)}</td>
                 <td>
@@ -300,6 +301,7 @@ function BusinessInfoModal({
 }) {
   const [isClosing, setIsClosing] = useState(false)
   const [isAddingUser, setIsAddingUser] = useState(false)
+  const [isAddingModule, setIsAddingModule] = useState(false)
   const title = {
     payments: 'Payments',
     users: 'Business users',
@@ -333,13 +335,27 @@ function BusinessInfoModal({
                 Add new user
               </button>
             ) : null}
+            {modal.type === 'modules' ? (
+              <button className="primary-action" type="button" onClick={() => setIsAddingModule(true)}>
+                <FiPlus aria-hidden="true" />
+                Add module
+              </button>
+            ) : null}
             <button className="secondary-button" type="button" onClick={requestClose}>
               Close
             </button>
           </div>
         </header>
         <div className="business-modal__content">
-          {renderModalContent({ modal, onChanged, onClose: requestClose, isAddingUser, setIsAddingUser })}
+          {renderModalContent({
+            modal,
+            onChanged,
+            onClose: requestClose,
+            isAddingUser,
+            setIsAddingUser,
+            isAddingModule,
+            setIsAddingModule,
+          })}
         </div>
       </section>
     </div>
@@ -352,12 +368,16 @@ function renderModalContent({
   onClose,
   isAddingUser,
   setIsAddingUser,
+  isAddingModule,
+  setIsAddingModule,
 }: {
   modal: ActiveModal
   onChanged: (business?: BusinessAggregate) => void
   onClose: () => void
   isAddingUser: boolean
   setIsAddingUser: (isAdding: boolean) => void
+  isAddingModule: boolean
+  setIsAddingModule: (isAdding: boolean) => void
 }) {
   if (modal.type === 'payments') {
     return modal.business.payments.length ? (
@@ -395,7 +415,14 @@ function renderModalContent({
   }
 
   if (modal.type === 'modules') {
-    return <BusinessModulesPanel businessAggregate={modal.business} onChanged={onChanged} />
+    return (
+      <BusinessModulesPanel
+        businessAggregate={modal.business}
+        isAdding={isAddingModule}
+        setIsAdding={setIsAddingModule}
+        onChanged={onChanged}
+      />
+    )
   }
 
   if (modal.type === 'update') {
@@ -429,15 +456,70 @@ function renderModalContent({
 
 function BusinessModulesPanel({
   businessAggregate,
+  isAdding,
+  setIsAdding,
   onChanged,
 }: {
   businessAggregate: BusinessAggregate
+  isAdding: boolean
+  setIsAdding: (isAdding: boolean) => void
   onChanged: (business?: BusinessAggregate) => void
 }) {
   const { accessToken } = useAuth()
   const logoutOnUnauthorized = useLogoutOnUnauthorized()
   const [modules, setModules] = useState(businessAggregate.business_modules)
+  const [availableModules, setAvailableModules] = useState<AvailableBusinessModule[]>([])
+  const [selectedModuleId, setSelectedModuleId] = useState('')
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false)
+  const [availableError, setAvailableError] = useState<string | null>(null)
   const [savingModuleId, setSavingModuleId] = useState<string | null>(null)
+  const addableModules = useMemo(() => {
+    const activeModuleIds = new Set(modules.filter((businessModule) => businessModule.is_active).map((item) => item.id))
+
+    return availableModules.filter((businessModule) => !activeModuleIds.has(businessModule.id))
+  }, [availableModules, modules])
+  const selectedAddModuleId =
+    selectedModuleId && addableModules.some((businessModule) => businessModule.id === selectedModuleId)
+      ? selectedModuleId
+      : addableModules[0]?.id || ''
+
+  useEffect(() => {
+    if (!isAdding || !accessToken) {
+      return
+    }
+
+    let isMounted = true
+    const currentAccessToken = accessToken
+
+    async function loadAvailableModules() {
+      setIsLoadingAvailable(true)
+      setAvailableError(null)
+
+      try {
+        const response = await listAvailableBusinessModulesRequest({ accessToken: currentAccessToken })
+
+        if (isMounted) {
+          setAvailableModules(response.data)
+        }
+      } catch (requestError) {
+        logoutOnUnauthorized(requestError)
+
+        if (isMounted) {
+          setAvailableError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los modulos.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingAvailable(false)
+        }
+      }
+    }
+
+    void loadAvailableModules()
+
+    return () => {
+      isMounted = false
+    }
+  }, [accessToken, isAdding, logoutOnUnauthorized])
 
   async function toggleModuleStatus(businessModule: BusinessModule) {
     if (!accessToken) {
@@ -484,35 +566,131 @@ function BusinessModulesPanel({
     }
   }
 
-  return modules.length ? (
-    <div className="info-list">
-      {modules.map((businessModule) => (
-        <article className="info-card" key={businessModule.id}>
-          <div className="info-card__header">
-            <div>
-              <h4>{businessModule.module_name}</h4>
-              <small>{businessModule.is_active ? 'Active' : 'Inactive'}</small>
-            </div>
-            <button
-              className={`secondary-button ${businessModule.is_active ? 'danger-button' : ''}`}
-              type="button"
-              disabled={savingModuleId === businessModule.id}
-              onClick={() => void toggleModuleStatus(businessModule)}
+  async function addModule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!accessToken) {
+      await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
+      return
+    }
+
+    if (!selectedAddModuleId) {
+      await Swal.fire('Modulo requerido', 'Selecciona un modulo para agregar.', 'warning')
+      return
+    }
+
+    const selectedModule = availableModules.find((businessModule) => businessModule.id === selectedAddModuleId)
+    const result = await Swal.fire({
+      title: 'Agregar modulo',
+      text: `Seguro que quieres agregar ${selectedModule?.module_name ?? 'este modulo'} al business?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Si, agregar',
+      cancelButtonText: 'Cancelar',
+    })
+
+    if (!result.isConfirmed) {
+      return
+    }
+
+    setSavingModuleId(selectedAddModuleId)
+
+    try {
+      const response = await addBusinessModuleRequest(businessAggregate.business.id, selectedAddModuleId, { accessToken })
+
+      setModules((current) => {
+        const moduleExists = current.some((businessModule) => businessModule.id === response.data.id)
+
+        return moduleExists
+          ? current.map((businessModule) => (businessModule.id === response.data.id ? response.data : businessModule))
+          : [...current, response.data]
+      })
+      setSelectedModuleId('')
+      setIsAdding(false)
+      await Swal.fire('Modulo agregado', 'El modulo fue agregado correctamente.', 'success')
+      onChanged()
+    } catch (requestError) {
+      logoutOnUnauthorized(requestError)
+      await Swal.fire('No se pudo agregar', getBusinessErrorMessage(requestError), 'error')
+    } finally {
+      setSavingModuleId(null)
+    }
+  }
+
+  return (
+    <div className="business-modules-panel">
+      {isAdding ? (
+        <form className="inline-form-card" onSubmit={addModule}>
+          <h4>Add module</h4>
+          {availableError ? <p className="form-alert">{availableError}</p> : null}
+          <label className="input-field">
+            <span>Available module</span>
+            <select
+              value={selectedAddModuleId}
+              disabled={isLoadingAvailable || addableModules.length === 0}
+              onChange={(event) => setSelectedModuleId(event.target.value)}
             >
-              {savingModuleId === businessModule.id
-                ? 'Saving...'
-                : businessModule.is_active
-                  ? 'Inactivate module'
-                  : 'Activate module'}
+              <option value="">
+                {isLoadingAvailable
+                  ? 'Loading modules...'
+                  : addableModules.length
+                    ? 'Select a module'
+                    : 'No modules available'}
+              </option>
+              {addableModules.map((businessModule) => (
+                <option value={businessModule.id} key={businessModule.id}>
+                  {businessModule.module_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedAddModuleId ? (
+            <p className="module-helper">
+              {availableModules.find((businessModule) => businessModule.id === selectedAddModuleId)?.module_description}
+            </p>
+          ) : null}
+          <div className="inline-actions">
+            <button className="secondary-button" type="button" onClick={() => setIsAdding(false)}>
+              Cancel
+            </button>
+            <button className="primary-action" type="submit" disabled={!selectedAddModuleId || Boolean(savingModuleId)}>
+              {savingModuleId === selectedAddModuleId ? 'Saving...' : 'Save'}
             </button>
           </div>
-          <p>{businessModule.module_description}</p>
-          <small>{formatSafeDate(businessModule.created_at)}</small>
-        </article>
-      ))}
+        </form>
+      ) : null}
+
+      {modules.length ? (
+        <div className="info-list">
+          {modules.map((businessModule) => (
+            <article className="info-card" key={businessModule.id}>
+              <div className="info-card__header">
+                <div>
+                  <h4>{businessModule.module_name}</h4>
+                  <small>{businessModule.is_active ? 'Active' : 'Inactive'}</small>
+                </div>
+                <button
+                  className={`secondary-button ${businessModule.is_active ? 'danger-button' : ''}`}
+                  type="button"
+                  disabled={savingModuleId === businessModule.id}
+                  onClick={() => void toggleModuleStatus(businessModule)}
+                >
+                  {savingModuleId === businessModule.id
+                    ? 'Saving...'
+                    : businessModule.is_active
+                      ? 'Inactivate module'
+                      : 'Activate module'}
+                </button>
+              </div>
+              <p>{businessModule.module_description}</p>
+              <small>{formatSafeDate(businessModule.created_at)}</small>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p>No business modules found.</p>
+      )}
     </div>
-  ) : (
-    <p>No business modules found.</p>
   )
 }
 

@@ -41,6 +41,7 @@ export const businessApiRoutes = {
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}`),
   userPassword: (businessId: string, businessUserId: string) =>
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}/password`),
+  businessModules: (businessId: string) => apiUrl(`${apiRoutes.businesses.byId(businessId)}/modules`),
   moduleStatus: (businessId: string, moduleId: string) =>
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/modules/${moduleId}/status`),
   modules: () => apiUrl(apiRoutes.businesses.modules),

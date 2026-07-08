@@ -1,0 +1,4 @@
+export const BASE_MONTHLY_PAYMENT = 35
+export const INCLUDED_ADMIN_USERS = 1
+export const INCLUDED_GENERAL_USERS = 1
+export const EXTRA_USER_MONTHLY_COST = 2.99

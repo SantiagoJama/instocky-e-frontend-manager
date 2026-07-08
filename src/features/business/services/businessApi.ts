@@ -1,5 +1,6 @@
 import { businessApiRoutes } from '../../../shared/config/apiRoutes'
 import type {
+  AvailableBusinessModule,
   BusinessApiErrorBody,
   BusinessAggregate,
   BusinessModule,
@@ -81,6 +82,15 @@ export async function getBusinessDetailRequest(businessId: string, { accessToken
   })
 
   return parseBusinessResponse<{ data: BusinessAggregate }>(response)
+}
+
+export async function listAvailableBusinessModulesRequest({ accessToken }: RequestOptions) {
+  const response = await fetch(businessApiRoutes.modules(), {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  })
+
+  return parseBusinessResponse<{ data: AvailableBusinessModule[] }>(response)
 }
 
 export async function updateBusinessRequest(
@@ -178,6 +188,20 @@ export async function updateBusinessModuleStatusRequest(
     method: 'PATCH',
     headers: jsonHeaders(accessToken),
     body: JSON.stringify({ is_active: isActive }),
+  })
+
+  return parseBusinessResponse<{ data: BusinessModule }>(response)
+}
+
+export async function addBusinessModuleRequest(
+  businessId: string,
+  moduleId: string,
+  { accessToken }: RequestOptions,
+) {
+  const response = await fetch(businessApiRoutes.businessModules(businessId), {
+    method: 'POST',
+    headers: jsonHeaders(accessToken),
+    body: JSON.stringify({ module_id: Number(moduleId) }),
   })
 
   return parseBusinessResponse<{ data: BusinessModule }>(response)
