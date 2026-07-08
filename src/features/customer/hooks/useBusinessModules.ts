@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getBusinessModulesRequest } from '../services/customerApi'
 import type { BusinessModule } from '../types/customer.types'
 
-export function useBusinessModules(accessToken: string | null) {
+export function useBusinessModules(accessToken: string | null, onUnauthorized?: (error: unknown) => void) {
   const [modules, setModules] = useState<BusinessModule[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,11 +20,12 @@ export function useBusinessModules(accessToken: string | null) {
       const response = await getBusinessModulesRequest({ accessToken })
       setModules(response.data)
     } catch (requestError) {
+      onUnauthorized?.(requestError)
       setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los modulos.')
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken])
+  }, [accessToken, onUnauthorized])
 
   useEffect(() => {
     let isMounted = true
@@ -48,6 +49,7 @@ export function useBusinessModules(accessToken: string | null) {
         }
       } catch (requestError) {
         if (isMounted) {
+          onUnauthorized?.(requestError)
           setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los modulos.')
         }
       } finally {
@@ -62,7 +64,7 @@ export function useBusinessModules(accessToken: string | null) {
     return () => {
       isMounted = false
     }
-  }, [accessToken])
+  }, [accessToken, onUnauthorized])
 
   return {
     modules,

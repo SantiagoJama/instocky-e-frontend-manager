@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FiActivity, FiDatabase, FiMenu, FiShield } from 'react-icons/fi'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import { navigationSections } from '../../features/dashboard/navigation'
+import { BusinessPage } from '../business/BusinessPage'
 import { CustomerPage } from '../customer/CustomerPage'
 import { Sidebar } from '../../shared/components/sidebar/Sidebar'
 import './HomePage.css'
@@ -32,6 +33,10 @@ export function HomePage() {
 
     if (activePath === '/customer/view') {
       return <CustomerPage mode="view" />
+    }
+
+    if (activePath === '/business/view') {
+      return <BusinessPage />
     }
 
     return <DashboardOverview activeLabel={activeItem ? `${activeItem.sectionLabel} / ${activeItem.label}` : 'Dashboard'} />

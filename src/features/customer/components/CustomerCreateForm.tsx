@@ -2,6 +2,7 @@ import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } f
 import { FiKey, FiPlus, FiTrash2 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
+import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useBusinessModules } from '../hooks/useBusinessModules'
 import { createCustomerRequest } from '../services/customerApi'
 import type {
@@ -85,7 +86,11 @@ type BusinessSection =
 
 export function CustomerCreateForm() {
   const { accessToken } = useAuth()
-  const { modules, isLoading: isLoadingModules, error: modulesError } = useBusinessModules(accessToken)
+  const logoutOnUnauthorized = useLogoutOnUnauthorized()
+  const { modules, isLoading: isLoadingModules, error: modulesError } = useBusinessModules(
+    accessToken,
+    logoutOnUnauthorized,
+  )
   const [form, setForm] = useState<CreateCustomerPayload>(() => createInitialForm())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -270,6 +275,7 @@ export function CustomerCreateForm() {
       setForm(createInitialForm())
       setSubmitAttempted(false)
     } catch (error) {
+      logoutOnUnauthorized(error)
       await Swal.fire('No se pudo crear', getCustomerErrorMessage(error), 'error')
     } finally {
       setIsSubmitting(false)

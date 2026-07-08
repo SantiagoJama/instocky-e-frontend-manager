@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listCustomersRequest } from '../services/customerApi'
-import type { CustomerAggregate, CustomerPagination } from '../types/customer.types'
+import { listBusinessesRequest } from '../services/businessApi'
+import type { BusinessAggregate, BusinessPagination } from '../types/business.types'
 
-const initialPagination: CustomerPagination = {
+const initialPagination: BusinessPagination = {
   page: 1,
   limit: 20,
   total: 0,
   totalPages: 1,
 }
 
-export function useCustomers(accessToken: string | null, onUnauthorized?: (error: unknown) => void) {
-  const [customers, setCustomers] = useState<CustomerAggregate[]>([])
-  const [pagination, setPagination] = useState<CustomerPagination>(initialPagination)
+export function useBusinesses(accessToken: string | null, onUnauthorized?: (error: unknown) => void) {
+  const [businesses, setBusinesses] = useState<BusinessAggregate[]>([])
+  const [pagination, setPagination] = useState<BusinessPagination>(initialPagination)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadCustomers = useCallback(async () => {
+  const loadBusinesses = useCallback(async () => {
     if (!accessToken) {
-      setCustomers([])
+      setBusinesses([])
       return
     }
 
@@ -27,17 +27,17 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
     setError(null)
 
     try {
-      const response = await listCustomersRequest({
+      const response = await listBusinessesRequest({
         accessToken,
         page,
         limit: initialPagination.limit,
         search,
       })
-      setCustomers(response.data)
+      setBusinesses(response.data)
       setPagination(response.pagination)
     } catch (requestError) {
       onUnauthorized?.(requestError)
-      setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los customers.')
+      setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los businesses.')
     } finally {
       setIsLoading(false)
     }
@@ -46,10 +46,10 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
   useEffect(() => {
     let isMounted = true
 
-    async function loadInitialCustomers() {
+    async function loadInitialBusinesses() {
       if (!accessToken) {
         if (isMounted) {
-          setCustomers([])
+          setBusinesses([])
         }
         return
       }
@@ -58,7 +58,7 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
       setError(null)
 
       try {
-        const response = await listCustomersRequest({
+        const response = await listBusinessesRequest({
           accessToken,
           page,
           limit: initialPagination.limit,
@@ -66,13 +66,13 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
         })
 
         if (isMounted) {
-          setCustomers(response.data)
+          setBusinesses(response.data)
           setPagination(response.pagination)
         }
       } catch (requestError) {
         if (isMounted) {
           onUnauthorized?.(requestError)
-          setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los customers.')
+          setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los businesses.')
         }
       } finally {
         if (isMounted) {
@@ -81,7 +81,7 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
       }
     }
 
-    void loadInitialCustomers()
+    void loadInitialBusinesses()
 
     return () => {
       isMounted = false
@@ -89,7 +89,7 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
   }, [accessToken, onUnauthorized, page, search])
 
   return {
-    customers,
+    businesses,
     pagination,
     page,
     search,
@@ -97,6 +97,6 @@ export function useCustomers(accessToken: string | null, onUnauthorized?: (error
     error,
     setPage,
     setSearch,
-    reload: loadCustomers,
+    reload: loadBusinesses,
   }
 }

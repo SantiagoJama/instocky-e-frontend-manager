@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { FiEdit2, FiRefreshCw } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
+import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useCustomers } from '../hooks/useCustomers'
 import { updateCustomerRequest } from '../services/customerApi'
 import type {
@@ -10,6 +11,7 @@ import type {
   UpdateCustomerPayload,
 } from '../types/customer.types'
 import './CustomerComponents.css'
+import { formatDate } from '../../../shared/utils/convertionDate'
 
 type ValidationErrors = Record<string, string>
 
@@ -27,8 +29,9 @@ type EditState = {
 
 export function CustomerTable() {
   const { accessToken } = useAuth()
+  const logoutOnUnauthorized = useLogoutOnUnauthorized()
   const { customers, pagination, page, search, isLoading, error, setPage, setSearch, reload } =
-    useCustomers(accessToken)
+    useCustomers(accessToken, logoutOnUnauthorized)
   const [editingCustomer, setEditingCustomer] = useState<CustomerAggregate | null>(null)
 
   return (
@@ -72,6 +75,7 @@ export function CustomerTable() {
               <th>Business</th>
               <th>Location</th>
               <th>Status</th>
+              <th>Created at</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -97,16 +101,18 @@ export function CustomerTable() {
                   <td>
                     <span>{item.customer_contact.email}</span>
                     <small>{item.customer_contact.mobile_phone_number}</small>
+                    <small>{item.customer_contact.base_phone_number}</small>
                   </td>
                   <td>
                     <span>{firstBusiness?.business.the_name ?? 'N/A'}</span>
-                    <small>{firstBusiness?.business.tenant_name ?? 'N/A'}</small>
                   </td>
                   <td>
                     <span>{item.customer.city}</span>
                     <small>{item.customer.country}</small>
                   </td>
                   <td>{item.customer.is_active ? 'Active' : 'Inactive'}</td>
+                  <td>{formatDate(item.customer.created_at ?? '')}</td>
+                  
                   <td>
                     <button className="table-action" type="button" onClick={() => setEditingCustomer(item)}>
                       <FiEdit2 aria-hidden="true" />
@@ -161,6 +167,7 @@ function CustomerEditModal({
   onSaved: () => void
 }) {
   const { accessToken } = useAuth()
+  const logoutOnUnauthorized = useLogoutOnUnauthorized()
   const [form, setForm] = useState<EditState>(() => toEditState(customerAggregate))
   const [isSaving, setIsSaving] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -219,6 +226,7 @@ function CustomerEditModal({
       await Swal.fire('Customer actualizado', 'Los cambios fueron guardados.', 'success')
       onSaved()
     } catch (error) {
+      logoutOnUnauthorized(error)
       await Swal.fire(
         'No se pudo guardar',
         error instanceof Error ? error.message : 'Revisa los datos e intenta nuevamente.',

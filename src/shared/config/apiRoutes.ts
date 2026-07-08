@@ -7,6 +7,8 @@ const apiRoutes = {
     logout: 'auth/logout',
   },
   businesses: {
+    root: 'businesses',
+    byId: (businessId: string) => `businesses/${businessId}`,
     modules: 'businesses/modules',
   },
   customers: {
@@ -30,6 +32,17 @@ export const authApiRoutes = {
 }
 
 export const businessApiRoutes = {
+  list: () => apiUrl(apiRoutes.businesses.root),
+  detail: (businessId: string) => apiUrl(apiRoutes.businesses.byId(businessId)),
+  update: (businessId: string) => apiUrl(apiRoutes.businesses.byId(businessId)),
+  status: (businessId: string) => apiUrl(`${apiRoutes.businesses.byId(businessId)}/status`),
+  users: (businessId: string) => apiUrl(`${apiRoutes.businesses.byId(businessId)}/users`),
+  user: (businessId: string, businessUserId: string) =>
+    apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}`),
+  userPassword: (businessId: string, businessUserId: string) =>
+    apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}/password`),
+  moduleStatus: (businessId: string, moduleId: string) =>
+    apiUrl(`${apiRoutes.businesses.byId(businessId)}/modules/${moduleId}/status`),
   modules: () => apiUrl(apiRoutes.businesses.modules),
 }
 
