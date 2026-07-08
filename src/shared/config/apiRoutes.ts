@@ -11,6 +11,10 @@ const apiRoutes = {
     byId: (businessId: string) => `businesses/${businessId}`,
     modules: 'businesses/modules',
   },
+  users: {
+    root: 'users',
+    byId: (userId: string) => `users/${userId}`,
+  },
   customers: {
     root: 'customers',
     byId: (customerId: string) => `customers/${customerId}`,
@@ -51,4 +55,12 @@ export const customerApiRoutes = {
   list: () => apiUrl(apiRoutes.customers.root),
   create: () => apiUrl(apiRoutes.customers.root),
   update: (customerId: string) => apiUrl(apiRoutes.customers.byId(customerId)),
+}
+
+export const userApiRoutes = {
+  list: () => apiUrl(apiRoutes.users.root),
+  create: () => apiUrl(apiRoutes.users.root),
+  update: (userId: string) => apiUrl(apiRoutes.users.byId(userId)),
+  status: (userId: string) => apiUrl(`${apiRoutes.users.byId(userId)}/status`),
+  password: (userId: string) => apiUrl(`${apiRoutes.users.byId(userId)}/password`),
 }

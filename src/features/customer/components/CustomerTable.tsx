@@ -54,7 +54,7 @@ export function CustomerTable() {
             type="search"
             value={search}
             maxLength={120}
-            placeholder="Customer, business or tenant"
+            placeholder="Customer or business"
             onChange={(event) => {
               setPage(1)
               setSearch(event.target.value)

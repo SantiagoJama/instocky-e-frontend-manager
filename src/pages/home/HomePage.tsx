@@ -4,6 +4,7 @@ import { useAuth } from '../../features/auth/hooks/useAuth'
 import { navigationSections } from '../../features/dashboard/navigation'
 import { BusinessPage } from '../business/BusinessPage'
 import { CustomerPage } from '../customer/CustomerPage'
+import { UserPage } from '../user/UserPage'
 import { Sidebar } from '../../shared/components/sidebar/Sidebar'
 import './HomePage.css'
 
@@ -37,6 +38,10 @@ export function HomePage() {
 
     if (activePath === '/business/view') {
       return <BusinessPage />
+    }
+
+    if (activePath === '/manager/view') {
+      return <UserPage />
     }
 
     return <DashboardOverview activeLabel={activeItem ? `${activeItem.sectionLabel} / ${activeItem.label}` : 'Dashboard'} />

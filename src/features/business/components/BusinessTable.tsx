@@ -123,7 +123,7 @@ export function BusinessTable() {
             type="search"
             value={search}
             maxLength={120}
-            placeholder="RUC, name, tenant, type or customer"
+            placeholder="RUC or business name"
             onChange={(event) => {
               setPage(1)
               setSearch(event.target.value)

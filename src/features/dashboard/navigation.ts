@@ -55,7 +55,7 @@ export const navigationSections: NavigationSection[] = [
     children: [
       {
         id: 'manager-view',
-        label: 'View',
+        label: 'View Users',
         path: '/manager/view',
         icon: FiEye,
       },
