@@ -1,9 +1,16 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { FiEdit2, FiKey, FiPlus, FiRefreshCw, FiSlash, FiUnlock } from 'react-icons/fi'
 import { Tooltip } from 'react-tooltip'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
+import {
+  assignPermissionToUserRequest,
+  listPermissionsRequest,
+  listUserPermissionsRequest,
+  updateUserPermissionStatusRequest,
+} from '../../permission/services/permissionApi'
+import type { Permission, UserPermission } from '../../permission/types/permission.types'
 import { useManagerUsers } from '../hooks/useManagerUsers'
 import {
   changeManagerUserPasswordRequest,
@@ -16,6 +23,7 @@ import { formatDate } from '../../../shared/utils/convertionDate'
 import './UserComponents.css'
 
 type ValidationErrors = Record<string, string>
+type PermissionSelection = Record<string, boolean>
 
 type ModalState =
   | { type: 'create' }
@@ -279,6 +287,11 @@ function CreateUserForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: 
   const [form, setForm] = useState<ManagerUserPayload>(emptyCreateForm)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const { permissions, isLoading: isLoadingPermissions, error: permissionsError } = useActivePermissions(
+    accessToken,
+    logoutOnUnauthorized,
+  )
+  const [selectedPermissions, setSelectedPermissions] = useState<PermissionSelection>({})
   const errors = useMemo(() => validateUserForm(form, submitAttempted, true), [form, submitAttempted])
 
   function updateField(field: keyof ManagerUserPayload, value: string) {
@@ -303,7 +316,17 @@ function CreateUserForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: 
     setIsSaving(true)
 
     try {
-      await createManagerUserRequest(normalizeCreatePayload(form), { accessToken })
+      const response = await createManagerUserRequest(normalizeCreatePayload(form), { accessToken })
+      const permissionIds = getSelectedPermissionIds(selectedPermissions)
+
+      if (form.role !== 'admin') {
+        await Promise.all(
+          permissionIds.map((permissionId) =>
+            assignPermissionToUserRequest(response.data.id, permissionId, { accessToken }),
+          ),
+        )
+      }
+
       await Swal.fire('Usuario creado', 'El usuario manager fue creado correctamente.', 'success')
       onSaved()
     } catch (requestError) {
@@ -317,6 +340,16 @@ function CreateUserForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: 
   return (
     <form className="user-form" onSubmit={handleSubmit}>
       <UserFields form={form} errors={errors} includePassword onChange={updateField} />
+      <PermissionSelector
+        disabled={form.role === 'admin'}
+        error={permissionsError}
+        isLoading={isLoadingPermissions}
+        permissions={permissions}
+        selectedPermissions={selectedPermissions}
+        onToggle={(permissionId, isChecked) =>
+          setSelectedPermissions((current) => ({ ...current, [permissionId]: isChecked }))
+        }
+      />
       <div className="form-actions">
         <button className="secondary-button" type="button" onClick={onCancel}>
           Cancel
@@ -345,8 +378,21 @@ function EditUserForm({ user, onSaved, onCancel }: { user: ManagerUser; onSaved:
   const [form, setForm] = useState<ManagerUserPayload>(initialForm)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const { permissions, isLoading: isLoadingPermissions, error: permissionsError } = useActivePermissions(
+    accessToken,
+    logoutOnUnauthorized,
+  )
+  const {
+    selectedPermissions,
+    initialSelectedPermissions,
+    userPermissionAssignments,
+    setSelectedPermissions,
+    isLoading: isLoadingUserPermissions,
+    error: userPermissionsError,
+  } = useUserPermissionSelection(user.id, accessToken, logoutOnUnauthorized)
   const errors = useMemo(() => validateUserForm(form, submitAttempted, false), [form, submitAttempted])
   const hasChanges = form.firstName !== initialForm.firstName || form.lastName !== initialForm.lastName || form.email !== initialForm.email
+  const hasPermissionChanges = !arePermissionSelectionsEqual(selectedPermissions, initialSelectedPermissions)
 
   function updateField(field: keyof ManagerUserPayload, value: string) {
     if (field === 'role' || field === 'password') {
@@ -365,7 +411,7 @@ function EditUserForm({ user, onSaved, onCancel }: { user: ManagerUser; onSaved:
       return
     }
 
-    if (!hasChanges) {
+    if (!hasChanges && !hasPermissionChanges) {
       return
     }
 
@@ -378,7 +424,20 @@ function EditUserForm({ user, onSaved, onCancel }: { user: ManagerUser; onSaved:
     setIsSaving(true)
 
     try {
-      await updateManagerUserRequest(user.id, normalizeUpdatePayload(form), { accessToken })
+      if (hasChanges) {
+        await updateManagerUserRequest(user.id, normalizeUpdatePayload(form), { accessToken })
+      }
+
+      if (hasPermissionChanges && user.role !== 'admin') {
+        await saveUserPermissionChanges({
+          accessToken,
+          userId: user.id,
+          selectedPermissions,
+          initialSelectedPermissions,
+          assignments: userPermissionAssignments,
+        })
+      }
+
       await Swal.fire('Usuario actualizado', 'Los cambios fueron guardados.', 'success')
       onSaved()
     } catch (requestError) {
@@ -392,15 +451,67 @@ function EditUserForm({ user, onSaved, onCancel }: { user: ManagerUser; onSaved:
   return (
     <form className="user-form" onSubmit={handleSubmit}>
       <UserFields form={form} errors={errors} readOnlyRole onChange={updateField} />
+      <PermissionSelector
+        disabled={form.role === 'admin'}
+        error={permissionsError || userPermissionsError}
+        isLoading={isLoadingPermissions || isLoadingUserPermissions}
+        permissions={permissions}
+        selectedPermissions={selectedPermissions}
+        onToggle={(permissionId, isChecked) =>
+          setSelectedPermissions((current) => ({ ...current, [permissionId]: isChecked }))
+        }
+      />
       <div className="form-actions">
         <button className="secondary-button" type="button" onClick={onCancel}>
           Cancel
         </button>
-        <button className="primary-action" type="submit" disabled={isSaving || !hasChanges}>
+        <button className="primary-action" type="submit" disabled={isSaving || (!hasChanges && !hasPermissionChanges)}>
           {isSaving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </form>
+  )
+}
+
+function PermissionSelector({
+  permissions,
+  selectedPermissions,
+  isLoading,
+  error,
+  disabled,
+  onToggle,
+}: {
+  permissions: Permission[]
+  selectedPermissions: PermissionSelection
+  isLoading: boolean
+  error: string | null
+  disabled: boolean
+  onToggle: (permissionId: string, isChecked: boolean) => void
+}) {
+  return (
+    <fieldset className="user-permission-section">
+      <legend>Permissions</legend>
+      {disabled ? <p className="user-form-note">Admin has all permissions by rule.</p> : null}
+      {error ? <p className="form-alert">{error}</p> : null}
+      <div className="permission-option-grid">
+        {isLoading ? <p>Loading permissions...</p> : null}
+        {!isLoading && permissions.length === 0 ? <p>No active permissions found.</p> : null}
+        {permissions.map((permission) => (
+          <label className="permission-option" key={permission.id}>
+            <input
+              type="checkbox"
+              checked={Boolean(selectedPermissions[permission.id])}
+              disabled={disabled}
+              onChange={(event) => onToggle(permission.id, event.target.checked)}
+            />
+            <span>
+              <strong>{permission.code}</strong>
+              <small>{permission.name}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   )
 }
 
@@ -647,6 +758,167 @@ function normalizeUpdatePayload(form: ManagerUserPayload) {
     lastName: form.lastName.trim(),
     email: form.email.trim().toLowerCase(),
   }
+}
+
+function useActivePermissions(accessToken: string | null, onUnauthorized: (error: unknown) => boolean) {
+  const [permissions, setPermissions] = useState<Permission[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!accessToken) {
+      return
+    }
+
+    let isMounted = true
+    const currentAccessToken = accessToken
+
+    async function loadPermissions() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await listPermissionsRequest({
+          accessToken: currentAccessToken,
+          page: 1,
+          limit: 100,
+          status: 'active',
+        })
+
+        if (isMounted) {
+          setPermissions(response.data)
+        }
+      } catch (requestError) {
+        onUnauthorized(requestError)
+
+        if (isMounted) {
+          setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los permisos.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadPermissions()
+
+    return () => {
+      isMounted = false
+    }
+  }, [accessToken, onUnauthorized])
+
+  return { permissions, isLoading, error }
+}
+
+function useUserPermissionSelection(
+  userId: string,
+  accessToken: string | null,
+  onUnauthorized: (error: unknown) => boolean,
+) {
+  const [selectedPermissions, setSelectedPermissions] = useState<PermissionSelection>({})
+  const [initialSelectedPermissions, setInitialSelectedPermissions] = useState<PermissionSelection>({})
+  const [userPermissionAssignments, setUserPermissionAssignments] = useState<UserPermission[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!accessToken) {
+      return
+    }
+
+    let isMounted = true
+    const currentAccessToken = accessToken
+
+    async function loadUserPermissions() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await listUserPermissionsRequest(userId, { accessToken: currentAccessToken })
+        const selection = response.data.reduce<PermissionSelection>((current, assignment) => {
+          current[assignment.permission.id] = assignment.isActive
+          return current
+        }, {})
+
+        if (isMounted) {
+          setUserPermissionAssignments(response.data)
+          setSelectedPermissions(selection)
+          setInitialSelectedPermissions(selection)
+        }
+      } catch (requestError) {
+        onUnauthorized(requestError)
+
+        if (isMounted) {
+          setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los permisos del usuario.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadUserPermissions()
+
+    return () => {
+      isMounted = false
+    }
+  }, [accessToken, onUnauthorized, userId])
+
+  return {
+    selectedPermissions,
+    initialSelectedPermissions,
+    userPermissionAssignments,
+    setSelectedPermissions,
+    isLoading,
+    error,
+  }
+}
+
+function getSelectedPermissionIds(selection: PermissionSelection) {
+  return Object.entries(selection)
+    .filter(([, isSelected]) => isSelected)
+    .map(([permissionId]) => permissionId)
+}
+
+function arePermissionSelectionsEqual(left: PermissionSelection, right: PermissionSelection) {
+  const permissionIds = new Set([...Object.keys(left), ...Object.keys(right)])
+
+  return [...permissionIds].every((permissionId) => Boolean(left[permissionId]) === Boolean(right[permissionId]))
+}
+
+async function saveUserPermissionChanges({
+  accessToken,
+  userId,
+  selectedPermissions,
+  initialSelectedPermissions,
+  assignments,
+}: {
+  accessToken: string
+  userId: string
+  selectedPermissions: PermissionSelection
+  initialSelectedPermissions: PermissionSelection
+  assignments: UserPermission[]
+}) {
+  const permissionIds = new Set([...Object.keys(selectedPermissions), ...Object.keys(initialSelectedPermissions)])
+
+  await Promise.all(
+    [...permissionIds].map((permissionId) => {
+      const nextValue = Boolean(selectedPermissions[permissionId])
+      const previousValue = Boolean(initialSelectedPermissions[permissionId])
+
+      if (nextValue === previousValue) {
+        return Promise.resolve()
+      }
+
+      const assignment = assignments.find((item) => item.permission.id === permissionId)
+
+      return assignment
+        ? updateUserPermissionStatusRequest(userId, permissionId, nextValue, { accessToken })
+        : assignPermissionToUserRequest(userId, permissionId, { accessToken })
+    }),
+  )
 }
 
 function createSecurePassword() {

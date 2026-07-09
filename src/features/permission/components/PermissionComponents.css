@@ -1,83 +1,83 @@
-.user-page {
+.permission-page {
   display: grid;
   gap: var(--space-6);
 }
 
-.user-page__header,
-.user-header-actions,
-.user-toolbar,
+.permission-page__header,
+.permission-header-actions,
+.permission-toolbar,
 .pagination-row,
 .form-actions,
-.user-modal__header {
+.permission-modal__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
 }
 
-.user-page__header p,
-.user-modal__header p {
+.permission-page__header p,
+.permission-modal__header p {
   margin: 0 0 var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
 
-.user-page__header h2,
-.user-modal__header h3 {
+.permission-page__header h2,
+.permission-modal__header h3 {
   margin: 0;
   color: var(--color-heading);
   line-height: var(--line-height-tight);
 }
 
-.user-toolbar {
+.permission-toolbar {
   align-items: end;
   justify-content: flex-start;
 }
 
-.user-search {
+.permission-search {
   width: min(100%, 32rem);
 }
 
-.user-status-filter {
+.permission-status-filter {
   width: min(100%, 12rem);
 }
 
-.user-table-shell {
+.permission-table-shell {
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
-.user-table {
+.permission-table {
   width: 100%;
-  min-width: 78rem;
+  min-width: 70rem;
   border-collapse: collapse;
 }
 
-.user-table th,
-.user-table td {
+.permission-table th,
+.permission-table td {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
 }
 
-.user-table th {
+.permission-table th {
   color: var(--color-text-muted);
   background: var(--color-surface-raised);
   font-size: var(--font-size-xs);
   text-transform: uppercase;
 }
 
-.user-actions {
+.permission-actions {
   display: grid;
-  grid-template-columns: repeat(3, 2.5rem);
+  grid-template-columns: 2.5rem;
   gap: var(--space-2);
 }
 
-.user-action-button {
+.permission-action-button {
   display: inline-grid;
   width: 2.5rem;
   height: 2.5rem;
@@ -88,14 +88,19 @@
   background: var(--color-surface);
 }
 
-.user-action-button:hover,
-.user-action-button:focus-visible {
+.permission-action-button:hover,
+.permission-action-button:focus-visible {
   color: #ffffff;
   background: var(--color-primary);
   outline: none;
 }
 
-.user-modal-backdrop {
+.permission-action-button:disabled {
+  color: var(--color-text-muted);
+  background: var(--color-surface-raised);
+}
+
+.permission-modal-backdrop {
   position: fixed;
   z-index: 50;
   inset: 0;
@@ -106,7 +111,7 @@
   animation: modal-fade-in 180ms ease-out;
 }
 
-.user-modal {
+.permission-modal {
   display: grid;
   gap: var(--space-5);
   width: min(100%, 54rem);
@@ -119,58 +124,9 @@
   animation: modal-rise-in 180ms ease-out;
 }
 
-.user-form {
+.permission-form {
   display: grid;
   gap: var(--space-5);
-}
-
-.user-form-note {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-}
-
-.user-permission-section {
-  min-width: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.user-permission-section legend {
-  padding: 0 var(--space-2);
-  color: var(--color-heading);
-  font-weight: var(--font-weight-semibold);
-}
-
-.permission-option-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.permission-option {
-  display: flex;
-  min-width: 0;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-raised);
-}
-
-.permission-option span {
-  display: grid;
-  min-width: 0;
-}
-
-.permission-option small {
-  overflow: hidden;
-  color: var(--color-text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .form-grid {
@@ -204,23 +160,6 @@
 .input-field select[aria-invalid='true'] {
   border-color: var(--color-danger);
   background: var(--color-danger-soft);
-}
-
-.input-with-action {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.75rem;
-  gap: var(--space-2);
-}
-
-.input-action {
-  display: inline-grid;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  place-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-heading);
-  background: var(--color-surface);
 }
 
 .field-error {
@@ -288,12 +227,12 @@
 }
 
 @media (max-width: 860px) {
-  .user-page__header,
-  .user-header-actions,
-  .user-toolbar,
+  .permission-page__header,
+  .permission-header-actions,
+  .permission-toolbar,
   .pagination-row,
   .form-actions,
-  .user-modal__header {
+  .permission-modal__header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -302,11 +241,7 @@
     grid-template-columns: 1fr;
   }
 
-  .permission-option-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .user-modal {
+  .permission-modal {
     padding: var(--space-4);
   }
 }

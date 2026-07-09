@@ -17,19 +17,12 @@ function restoreAccessTokenOnce() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredSession())
   const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(getStoredSession()))
+  const [isRestoringSession, setIsRestoringSession] = useState(true)
 
   useEffect(() => {
     let isMounted = true
 
     async function restoreSession() {
-      const storedUser = getStoredSession()
-
-      if (!storedUser) {
-        setIsRestoringSession(false)
-        return
-      }
-
       try {
         const response = await restoreAccessTokenOnce()
 
@@ -38,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setAccessToken(response.accessToken)
-        setUser(storedUser)
+        saveStoredSession(response.user)
+        setUser(response.user)
       } catch {
         clearStoredSession()
 

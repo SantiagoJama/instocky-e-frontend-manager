@@ -1,51 +1,64 @@
 import { useMemo, useState } from 'react'
 import { FiActivity, FiDatabase, FiMenu, FiShield } from 'react-icons/fi'
 import { useAuth } from '../../features/auth/hooks/useAuth'
+import type { AuthUser } from '../../features/auth/types/auth.types'
 import { navigationSections } from '../../features/dashboard/navigation'
 import { BusinessPage } from '../business/BusinessPage'
 import { CustomerPage } from '../customer/CustomerPage'
+import { PermissionPage } from '../permission/PermissionPage'
 import { UserPage } from '../user/UserPage'
 import { Sidebar } from '../../shared/components/sidebar/Sidebar'
 import './HomePage.css'
 
-const defaultPath = navigationSections[0]?.children[0]?.path ?? '/'
-
 export function HomePage() {
   const { user } = useAuth()
   const fullName = user ? `${user.firstName} ${user.lastName}`.trim() : ''
+  const visibleNavigationSections = useMemo(() => getVisibleNavigationSections(user), [user])
+  const defaultPath = visibleNavigationSections[0]?.children[0]?.path ?? '/'
   const [activePath, setActivePath] = useState(defaultPath)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const effectiveActivePath = useMemo(() => {
+    const isActivePathVisible = visibleNavigationSections.some((section) =>
+      section.children.some((child) => child.path === activePath),
+    )
+
+    return isActivePathVisible ? activePath : defaultPath
+  }, [activePath, defaultPath, visibleNavigationSections])
 
   const activeItem = useMemo(() => {
-    return navigationSections
+    return visibleNavigationSections
       .flatMap((section) =>
         section.children.map((child) => ({
           ...child,
           sectionLabel: section.label,
         })),
       )
-      .find((item) => item.path === activePath)
-  }, [activePath])
+      .find((item) => item.path === effectiveActivePath)
+  }, [effectiveActivePath, visibleNavigationSections])
 
   const pageContent = useMemo(() => {
-    if (activePath === '/customer/create') {
+    if (effectiveActivePath === '/customer/create') {
       return <CustomerPage mode="create" />
     }
 
-    if (activePath === '/customer/view') {
+    if (effectiveActivePath === '/customer/view') {
       return <CustomerPage mode="view" />
     }
 
-    if (activePath === '/business/view') {
+    if (effectiveActivePath === '/business/view') {
       return <BusinessPage />
     }
 
-    if (activePath === '/manager/view') {
+    if (effectiveActivePath === '/manager/view') {
       return <UserPage />
     }
 
+    if (effectiveActivePath === '/manager/permissions') {
+      return <PermissionPage />
+    }
+
     return <DashboardOverview activeLabel={activeItem ? `${activeItem.sectionLabel} / ${activeItem.label}` : 'Dashboard'} />
-  }, [activeItem, activePath])
+  }, [activeItem, effectiveActivePath])
 
   function handleNavigate(path: string) {
     setActivePath(path)
@@ -55,9 +68,9 @@ export function HomePage() {
   return (
     <div className="dashboard-layout">
       <Sidebar
-        activePath={activePath}
+        activePath={effectiveActivePath}
         isOpen={isSidebarOpen}
-        navigationSections={navigationSections}
+        navigationSections={visibleNavigationSections}
         onClose={() => setIsSidebarOpen(false)}
         onNavigate={handleNavigate}
       />
@@ -96,6 +109,23 @@ export function HomePage() {
       </main>
     </div>
   )
+}
+
+function getVisibleNavigationSections(user: AuthUser | null) {
+  if (!user) {
+    return []
+  }
+
+  return navigationSections
+    .map((section) => ({
+      ...section,
+      children: section.children.filter((child) => canAccessPermission(user, child.permission)),
+    }))
+    .filter((section) => section.children.length > 0)
+}
+
+function canAccessPermission(user: AuthUser, permission: string) {
+  return user.hasAllPermissions || user.permissions.includes(permission)
 }
 
 function DashboardOverview({ activeLabel }: { activeLabel: string }) {

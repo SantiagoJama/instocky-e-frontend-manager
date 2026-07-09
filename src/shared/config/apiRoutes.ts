@@ -15,6 +15,12 @@ const apiRoutes = {
     root: 'users',
     byId: (userId: string) => `users/${userId}`,
   },
+  permissions: {
+    root: 'permissions',
+    byId: (permissionId: string) => `permissions/${permissionId}`,
+    userRoot: (userId: string) => `permissions/users/${userId}`,
+    userPermission: (userId: string, permissionId: string) => `permissions/users/${userId}/${permissionId}`,
+  },
   customers: {
     root: 'customers',
     byId: (customerId: string) => `customers/${customerId}`,
@@ -63,4 +69,14 @@ export const userApiRoutes = {
   update: (userId: string) => apiUrl(apiRoutes.users.byId(userId)),
   status: (userId: string) => apiUrl(`${apiRoutes.users.byId(userId)}/status`),
   password: (userId: string) => apiUrl(`${apiRoutes.users.byId(userId)}/password`),
+}
+
+export const permissionApiRoutes = {
+  list: () => apiUrl(apiRoutes.permissions.root),
+  create: () => apiUrl(apiRoutes.permissions.root),
+  status: (permissionId: string) => apiUrl(`${apiRoutes.permissions.byId(permissionId)}/status`),
+  userPermissions: (userId: string) => apiUrl(apiRoutes.permissions.userRoot(userId)),
+  assignToUser: (userId: string) => apiUrl(apiRoutes.permissions.userRoot(userId)),
+  userPermissionStatus: (userId: string, permissionId: string) =>
+    apiUrl(`${apiRoutes.permissions.userPermission(userId, permissionId)}/status`),
 }

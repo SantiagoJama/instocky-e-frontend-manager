@@ -4,6 +4,8 @@ export type AuthUser = {
   role: string
   firstName: string
   lastName: string
+  hasAllPermissions: boolean
+  permissions: string[]
 }
 
 export type LoginCredentials = {
@@ -22,7 +24,9 @@ export type LoginResponse = AuthTokens & {
   user: AuthUser
 }
 
-export type RefreshResponse = AuthTokens
+export type RefreshResponse = AuthTokens & {
+  user: AuthUser
+}
 
 export type ApiErrorDetail = {
   path: string

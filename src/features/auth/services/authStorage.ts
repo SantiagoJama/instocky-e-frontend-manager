@@ -21,7 +21,11 @@ export function getStoredSession(): AuthUser | null {
       return null
     }
 
-    return session.user
+    return {
+      ...session.user,
+      hasAllPermissions: Boolean(session.user.hasAllPermissions),
+      permissions: Array.isArray(session.user.permissions) ? session.user.permissions : [],
+    }
   } catch {
     clearStoredSession()
     return null

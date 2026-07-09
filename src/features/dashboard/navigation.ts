@@ -6,6 +6,7 @@ export type NavigationChild = {
   label: string
   path: string
   icon: IconType
+  permission: string
 }
 
 export type NavigationSection = {
@@ -26,12 +27,14 @@ export const navigationSections: NavigationSection[] = [
         label: 'Create',
         path: '/customer/create',
         icon: FiPlusCircle,
+        permission: 'customers.create',
       },
       {
         id: 'customer-view',
         label: 'View',
         path: '/customer/view',
         icon: FiEye,
+        permission: 'customers.read',
       },
     ],
   },
@@ -45,6 +48,7 @@ export const navigationSections: NavigationSection[] = [
         label: 'View',
         path: '/business/view',
         icon: FiEye,
+        permission: 'businesses.read',
       },
     ],
   },
@@ -58,6 +62,14 @@ export const navigationSections: NavigationSection[] = [
         label: 'View Users',
         path: '/manager/view',
         icon: FiEye,
+        permission: 'users.read',
+      },
+      {
+        id: 'permission-view',
+        label: 'Permissions',
+        path: '/manager/permissions',
+        icon: FiEye,
+        permission: 'permissions.read',
       },
     ],
   },
