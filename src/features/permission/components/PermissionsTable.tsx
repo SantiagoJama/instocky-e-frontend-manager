@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { usePermissions } from '../hooks/usePermissions'
 import { createPermissionRequest, updatePermissionStatusRequest } from '../services/permissionApi'
-import type { CreatePermissionPayload, Permission, PermissionStatus } from '../types/permission.types'
+import type { CreatePermissionPayload, Permission, PermissionRole, PermissionStatus } from '../types/permission.types'
 import { formatDate } from '../../../shared/utils/convertionDate'
 import './PermissionComponents.css'
 
@@ -16,6 +16,7 @@ const emptyPermission: CreatePermissionPayload = {
   code: '',
   name: '',
   description: '',
+  allowedRoles: ['admin'],
 }
 
 export function PermissionsTable() {
@@ -115,6 +116,7 @@ export function PermissionsTable() {
               <th>Code</th>
               <th>Name</th>
               <th>Description</th>
+              <th>Allowed roles</th>
               <th>Status</th>
               <th>Created</th>
               <th>Updated</th>
@@ -124,12 +126,12 @@ export function PermissionsTable() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8}>Loading permissions...</td>
+                <td colSpan={9}>Loading permissions...</td>
               </tr>
             ) : null}
             {!isLoading && permissions.length === 0 ? (
               <tr>
-                <td colSpan={8}>No permissions found.</td>
+                <td colSpan={9}>No permissions found.</td>
               </tr>
             ) : null}
             {permissions.map((permission) => (
@@ -138,6 +140,7 @@ export function PermissionsTable() {
                 <td>{permission.code}</td>
                 <td>{permission.name}</td>
                 <td>{permission.description}</td>
+                <td>{formatAllowedRoles(permission.allowedRoles)}</td>
                 <td>{permission.isActive ? 'Active' : 'Inactive'}</td>
                 <td>{formatSafeDate(permission.createdAt)}</td>
                 <td>{formatSafeDate(permission.updatedAt)}</td>
@@ -271,6 +274,22 @@ function CreatePermissionModal({ onClose, onSaved }: { onClose: () => void; onSa
             <TextInput label="Name" value={form.name} required error={errors.name} onChange={(value) => updateField('name', value)} />
             <TextInput label="Description" value={form.description} required error={errors.description} onChange={(value) => updateField('description', value)} />
           </div>
+          <fieldset className="role-section">
+            <legend>Allowed roles</legend>
+            {errors.allowedRoles ? <small className="field-error">{errors.allowedRoles}</small> : null}
+            <div className="role-option-grid">
+              {(['admin', 'support'] satisfies PermissionRole[]).map((role) => (
+                <label className="role-option" key={role}>
+                  <input
+                    type="checkbox"
+                    checked={form.allowedRoles.includes(role)}
+                    onChange={(event) => updateAllowedRole(role, event.target.checked)}
+                  />
+                  <span>{role}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className="form-actions">
             <button className="secondary-button" type="button" onClick={onClose}>
               Cancel
@@ -283,6 +302,15 @@ function CreatePermissionModal({ onClose, onSaved }: { onClose: () => void; onSa
       </section>
     </div>
   )
+
+  function updateAllowedRole(role: PermissionRole, isChecked: boolean) {
+    setForm((current) => ({
+      ...current,
+      allowedRoles: isChecked
+        ? [...new Set([...current.allowedRoles, role])]
+        : current.allowedRoles.filter((currentRole) => currentRole !== role),
+    }))
+  }
 }
 
 function TextInput({
@@ -334,6 +362,9 @@ function validatePermissionForm(form: CreatePermissionPayload, includeRequired: 
     pattern: /^[\p{L}0-9 .,:;,_()/-]+$/u,
     message: 'Solo letras, numeros y puntuacion basica.',
   })
+  if (form.allowedRoles.length === 0) {
+    errors.allowedRoles = 'Selecciona al menos un rol.'
+  }
   return errors
 }
 
@@ -368,7 +399,12 @@ function normalizePermissionPayload(form: CreatePermissionPayload) {
     code: form.code.trim().toLowerCase(),
     name: form.name.trim(),
     description: form.description.trim(),
+    allowedRoles: form.allowedRoles,
   }
+}
+
+function formatAllowedRoles(roles: PermissionRole[]) {
+  return roles.length ? roles.join(', ') : 'N/A'
 }
 
 function getPlaceholder(label: string) {

@@ -1,10 +1,12 @@
 export type PermissionStatus = 'all' | 'active' | 'inactive'
+export type PermissionRole = 'admin' | 'support'
 
 export type Permission = {
   id: string
   code: string
   name: string
   description: string
+  allowedRoles: PermissionRole[]
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -23,6 +25,7 @@ export type CreatePermissionPayload = {
   code: string
   name: string
   description: string
+  allowedRoles: PermissionRole[]
 }
 
 export type PermissionPagination = {
@@ -34,6 +37,7 @@ export type PermissionPagination = {
 
 export type ListPermissionsResponse = {
   data: Permission[]
+  byRole: Record<PermissionRole, Permission[]>
   pagination: PermissionPagination
 }
 

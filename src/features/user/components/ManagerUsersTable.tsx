@@ -4,13 +4,14 @@ import { Tooltip } from 'react-tooltip'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
+import type { AuthUser } from '../../auth/types/auth.types'
 import {
   assignPermissionToUserRequest,
   listPermissionsRequest,
   listUserPermissionsRequest,
   updateUserPermissionStatusRequest,
 } from '../../permission/services/permissionApi'
-import type { Permission, UserPermission } from '../../permission/types/permission.types'
+import type { Permission, PermissionRole, UserPermission } from '../../permission/types/permission.types'
 import { useManagerUsers } from '../hooks/useManagerUsers'
 import {
   changeManagerUserPasswordRequest,
@@ -40,15 +41,22 @@ const emptyCreateForm: ManagerUserPayload = {
 }
 
 export function ManagerUsersTable() {
-  const { accessToken } = useAuth()
+  const { accessToken, user: currentUser } = useAuth()
   const logoutOnUnauthorized = useLogoutOnUnauthorized()
   const { users, pagination, page, search, status, isLoading, error, setPage, setSearch, setStatus, reload } =
     useManagerUsers(accessToken, logoutOnUnauthorized)
   const [modal, setModal] = useState<ModalState>(null)
+  const canCreateUsers = canUseManagerPermission(currentUser, 'users.create')
+  const canUpdateUsers = canUseManagerPermission(currentUser, 'users.update')
 
   async function toggleStatus(user: ManagerUser) {
     if (!accessToken) {
       await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
+      return
+    }
+
+    if (!canUpdateUsers) {
+      await Swal.fire('Permiso requerido', 'No tienes permiso para actualizar usuarios.', 'warning')
       return
     }
 
@@ -89,10 +97,12 @@ export function ManagerUsersTable() {
             <FiRefreshCw aria-hidden="true" />
             Refresh
           </button>
-          <button className="primary-action" type="button" onClick={() => setModal({ type: 'create' })}>
-            <FiPlus aria-hidden="true" />
-            Create user
-          </button>
+          {canCreateUsers ? (
+            <button className="primary-action" type="button" onClick={() => setModal({ type: 'create' })}>
+              <FiPlus aria-hidden="true" />
+              Create user
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -170,23 +180,29 @@ export function ManagerUsersTable() {
                 <td>{formatSafeDate(user.createdAt)}</td>
                 <td>
                   <div className="user-actions">
-                    <IconAction label="Edit user" tooltipId={`edit-user-${user.id}`} onClick={() => setModal({ type: 'edit', user })}>
-                      <FiEdit2 aria-hidden="true" />
-                    </IconAction>
-                    <IconAction
-                      label={user.isActive ? 'Inactivate user' : 'Activate user'}
-                      tooltipId={`status-user-${user.id}`}
-                      onClick={() => void toggleStatus(user)}
-                    >
-                      {user.isActive ? <FiSlash aria-hidden="true" /> : <FiUnlock aria-hidden="true" />}
-                    </IconAction>
-                    <IconAction
-                      label="Change password"
-                      tooltipId={`password-user-${user.id}`}
-                      onClick={() => setModal({ type: 'password', user })}
-                    >
-                      <FiKey aria-hidden="true" />
-                    </IconAction>
+                    {canUpdateUsers ? (
+                      <>
+                        <IconAction label="Edit user" tooltipId={`edit-user-${user.id}`} onClick={() => setModal({ type: 'edit', user })}>
+                          <FiEdit2 aria-hidden="true" />
+                        </IconAction>
+                        <IconAction
+                          label={user.isActive ? 'Inactivate user' : 'Activate user'}
+                          tooltipId={`status-user-${user.id}`}
+                          onClick={() => void toggleStatus(user)}
+                        >
+                          {user.isActive ? <FiSlash aria-hidden="true" /> : <FiUnlock aria-hidden="true" />}
+                        </IconAction>
+                        <IconAction
+                          label="Change password"
+                          tooltipId={`password-user-${user.id}`}
+                          onClick={() => setModal({ type: 'password', user })}
+                        >
+                          <FiKey aria-hidden="true" />
+                        </IconAction>
+                      </>
+                    ) : (
+                      <span className="user-action-empty">Read only</span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -317,7 +333,7 @@ function CreateUserForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: 
 
     try {
       const response = await createManagerUserRequest(normalizeCreatePayload(form), { accessToken })
-      const permissionIds = getSelectedPermissionIds(selectedPermissions)
+      const permissionIds = getSelectedPermissionIds(selectedPermissions, permissions, form.role)
 
       if (form.role !== 'admin') {
         await Promise.all(
@@ -345,6 +361,7 @@ function CreateUserForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: 
         error={permissionsError}
         isLoading={isLoadingPermissions}
         permissions={permissions}
+        targetRole={form.role}
         selectedPermissions={selectedPermissions}
         onToggle={(permissionId, isChecked) =>
           setSelectedPermissions((current) => ({ ...current, [permissionId]: isChecked }))
@@ -456,6 +473,7 @@ function EditUserForm({ user, onSaved, onCancel }: { user: ManagerUser; onSaved:
         error={permissionsError || userPermissionsError}
         isLoading={isLoadingPermissions || isLoadingUserPermissions}
         permissions={permissions}
+        targetRole={form.role}
         selectedPermissions={selectedPermissions}
         onToggle={(permissionId, isChecked) =>
           setSelectedPermissions((current) => ({ ...current, [permissionId]: isChecked }))
@@ -479,15 +497,22 @@ function PermissionSelector({
   isLoading,
   error,
   disabled,
+  targetRole,
   onToggle,
 }: {
   permissions: Permission[]
+  targetRole: PermissionRole
   selectedPermissions: PermissionSelection
   isLoading: boolean
   error: string | null
   disabled: boolean
   onToggle: (permissionId: string, isChecked: boolean) => void
 }) {
+  const assignablePermissions = useMemo(
+    () => permissions.filter((permission) => permission.allowedRoles.includes(targetRole)),
+    [permissions, targetRole],
+  )
+
   return (
     <fieldset className="user-permission-section">
       <legend>Permissions</legend>
@@ -495,8 +520,8 @@ function PermissionSelector({
       {error ? <p className="form-alert">{error}</p> : null}
       <div className="permission-option-grid">
         {isLoading ? <p>Loading permissions...</p> : null}
-        {!isLoading && permissions.length === 0 ? <p>No active permissions found.</p> : null}
-        {permissions.map((permission) => (
+        {!isLoading && assignablePermissions.length === 0 ? <p>No active permissions found for this role.</p> : null}
+        {assignablePermissions.map((permission) => (
           <label className="permission-option" key={permission.id}>
             <input
               type="checkbox"
@@ -876,9 +901,13 @@ function useUserPermissionSelection(
   }
 }
 
-function getSelectedPermissionIds(selection: PermissionSelection) {
+function getSelectedPermissionIds(selection: PermissionSelection, permissions: Permission[], targetRole: PermissionRole) {
+  const assignablePermissionIds = new Set(
+    permissions.filter((permission) => permission.allowedRoles.includes(targetRole)).map((permission) => permission.id),
+  )
+
   return Object.entries(selection)
-    .filter(([, isSelected]) => isSelected)
+    .filter(([permissionId, isSelected]) => isSelected && assignablePermissionIds.has(permissionId))
     .map(([permissionId]) => permissionId)
 }
 
@@ -962,4 +991,8 @@ function getUserErrorMessage(error: unknown) {
   }
 
   return error.message
+}
+
+function canUseManagerPermission(user: AuthUser | null, permission: string) {
+  return Boolean(user?.hasAllPermissions || user?.permissions.includes(permission))
 }

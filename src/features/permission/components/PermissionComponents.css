@@ -129,6 +129,40 @@
   gap: var(--space-5);
 }
 
+.role-section {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.role-section legend {
+  padding: 0 var(--space-2);
+  color: var(--color-heading);
+  font-weight: var(--font-weight-semibold);
+}
+
+.role-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.role-option {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-heading);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -238,6 +272,10 @@
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-option-grid {
     grid-template-columns: 1fr;
   }
 
