@@ -8,6 +8,7 @@ import {
   FiPlus,
   FiRefreshCw,
   FiSlash,
+  FiUnlock,
   FiUsers,
 } from 'react-icons/fi'
 import { Tooltip } from 'react-tooltip'
@@ -19,11 +20,11 @@ import {
   addBusinessModuleRequest,
   changeBusinessUserPasswordRequest,
   createBusinessUserRequest,
-  inactivateBusinessUserRequest,
   listAvailableBusinessModulesRequest,
   updateBusinessModuleStatusRequest,
   updateBusinessRequest,
   updateBusinessStatusRequest,
+  updateBusinessUserStatusRequest,
   updateBusinessUserRequest,
 } from '../services/businessApi'
 import type {
@@ -74,18 +75,20 @@ export function BusinessTable() {
     useBusinesses(accessToken, logoutOnUnauthorized)
   const [activeModal, setActiveModal] = useState<ActiveModal | null>(null)
 
-  async function inactivateBusiness(business: BusinessAggregate) {
+  async function toggleBusinessStatus(business: BusinessAggregate) {
     if (!accessToken) {
       await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
       return
     }
 
+    const nextStatus = !business.business.is_active
+    const action = nextStatus ? 'activar' : 'inactivar'
     const result = await Swal.fire({
-      title: 'Inactivar business',
-      text: `Seguro que quieres inactivar ${business.business.the_name}?`,
+      title: `${nextStatus ? 'Activar' : 'Inactivar'} business`,
+      text: `Seguro que quieres ${action} ${business.business.the_name}?`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Si, inactivar',
+      confirmButtonText: `Si, ${action}`,
       cancelButtonText: 'Cancelar',
     })
 
@@ -94,12 +97,16 @@ export function BusinessTable() {
     }
 
     try {
-      await updateBusinessStatusRequest(business.business.id, false, { accessToken })
-      await Swal.fire('Business inactivado', 'El business fue inactivado correctamente.', 'success')
+      await updateBusinessStatusRequest(business.business.id, nextStatus, { accessToken })
+      await Swal.fire(
+        nextStatus ? 'Business activado' : 'Business inactivado',
+        'El estado fue actualizado correctamente.',
+        'success',
+      )
       await reload()
     } catch (requestError) {
       logoutOnUnauthorized(requestError)
-      await Swal.fire('No se pudo inactivar', getBusinessErrorMessage(requestError), 'error')
+      await Swal.fire('No se pudo actualizar', getBusinessErrorMessage(requestError), 'error')
     }
   }
 
@@ -215,11 +222,11 @@ export function BusinessTable() {
                       <FiEdit2 aria-hidden="true" />
                     </IconAction>
                     <IconAction
-                      label="Inactivate business"
-                      tooltipId={`inactivate-${item.business.id}`}
-                      onClick={() => void inactivateBusiness(item)}
+                      label={item.business.is_active ? 'Inactivate business' : 'Activate business'}
+                      tooltipId={`status-${item.business.id}`}
+                      onClick={() => void toggleBusinessStatus(item)}
                     >
-                      <FiSlash aria-hidden="true" />
+                      {item.business.is_active ? <FiSlash aria-hidden="true" /> : <FiUnlock aria-hidden="true" />}
                     </IconAction>
                   </div>
                 </td>
@@ -435,7 +442,7 @@ function renderModalContent({
 
   return (
     <article className="info-card subscription-card">
-      <h4>Subscription</h4>
+      <h4>Details</h4>
       <dl>
         <InfoRow label="Type" value={modal.business.subscription.subscription_type} />
         <InfoRow label="Trial start" value={formatSafeDate(modal.business.subscription.trial_start)} />
@@ -823,18 +830,20 @@ function BusinessUsersPanel({
     }
   }
 
-  async function inactivateUser(user: BusinessUser) {
+  async function toggleUserStatus(user: BusinessUser) {
     if (!accessToken) {
       await Swal.fire('Sesion requerida', 'Inicia sesion nuevamente.', 'warning')
       return
     }
 
+    const nextStatus = !user.is_active
+    const action = nextStatus ? 'activar' : 'inactivar'
     const result = await Swal.fire({
-      title: 'Inactivar usuario',
-      text: `Seguro que quieres inactivar ${user.first_name} ${user.last_name}?`,
+      title: `${nextStatus ? 'Activar' : 'Inactivar'} usuario`,
+      text: `Seguro que quieres ${action} ${user.first_name} ${user.last_name}?`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Si, inactivar',
+      confirmButtonText: `Si, ${action}`,
       cancelButtonText: 'Cancelar',
     })
 
@@ -843,13 +852,19 @@ function BusinessUsersPanel({
     }
 
     try {
-      const response = await inactivateBusinessUserRequest(businessAggregate.business.id, user.id, { accessToken })
+      const response = await updateBusinessUserStatusRequest(businessAggregate.business.id, user.id, nextStatus, {
+        accessToken,
+      })
       setUsers((current) => current.map((currentUser) => (currentUser.id === user.id ? response.data : currentUser)))
-      await Swal.fire('Usuario inactivado', 'El usuario fue inactivado correctamente.', 'success')
+      await Swal.fire(
+        nextStatus ? 'Usuario activado' : 'Usuario inactivado',
+        'El estado fue actualizado correctamente.',
+        'success',
+      )
       onChanged()
     } catch (requestError) {
       logoutOnUnauthorized(requestError)
-      await Swal.fire('No se pudo inactivar', getBusinessErrorMessage(requestError), 'error')
+      await Swal.fire('No se pudo actualizar', getBusinessErrorMessage(requestError), 'error')
     }
   }
 
@@ -980,8 +995,12 @@ function BusinessUsersPanel({
                       <button className="secondary-button" type="button" onClick={() => setPasswordUserId(user.id)}>
                         Change password
                       </button>
-                      <button className="secondary-button danger-button" type="button" onClick={() => void inactivateUser(user)}>
-                        Inactivate
+                      <button
+                        className={`secondary-button ${user.is_active ? 'danger-button' : ''}`}
+                        type="button"
+                        onClick={() => void toggleUserStatus(user)}
+                      >
+                        {user.is_active ? 'Inactivate' : 'Activate'}
                       </button>
                     </div>
                   </div>
@@ -1080,8 +1099,7 @@ function BusinessEditFormModal({
           <TextInput label="RUC" value={form.business.ruc ?? ''} required error={errors['business.ruc']} onChange={(value) => updateField('business', 'ruc', value)} />
           <TextInput label="Name" value={form.business.the_name ?? ''} required error={errors['business.the_name']} onChange={(value) => updateField('business', 'the_name', value)} />
           <TextInput label="Business type" value={form.business.business_type ?? ''} required error={errors['business.business_type']} onChange={(value) => updateField('business', 'business_type', value)} />
-          <TextInput label="Website" type="url" value={form.business.website ?? ''} required error={errors['business.website']} onChange={(value) => updateField('business', 'website', value)} />
-          <TextInput label="Tenant name" value={form.business.tenant_name ?? ''} required error={errors['business.tenant_name']} onChange={(value) => updateField('business', 'tenant_name', value)} />
+          <TextInput label="Website" value={form.business.website ?? ''} required error={errors['business.website']} onChange={(value) => updateField('business', 'website', value)} />
           <label className="check-field">
             <input
               type="checkbox"
@@ -1243,7 +1261,7 @@ function pickLocation(location: BusinessLocation) {
 function pickContact(contact: BusinessContact) {
   return {
     mobile_phone_number: contact.mobile_phone_number,
-    base_phone_number: contact.base_phone_number,
+    base_phone_number: contact.base_phone_number || 'N/A',
     email: contact.email,
   }
 }

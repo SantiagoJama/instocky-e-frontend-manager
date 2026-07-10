@@ -1,5 +1,5 @@
 import type { IconType } from 'react-icons'
-import { FiBriefcase, FiEye, FiPlusCircle, FiUsers } from 'react-icons/fi'
+import { FiBriefcase, FiEye, FiFileText, FiPlusCircle, FiUsers } from 'react-icons/fi'
 
 export type NavigationChild = {
   id: string
@@ -70,6 +70,13 @@ export const navigationSections: NavigationSection[] = [
         path: '/manager/permissions',
         icon: FiEye,
         permission: 'permissions.read',
+      },
+      {
+        id: 'logs-view',
+        label: 'Logs',
+        path: '/manager/logs',
+        icon: FiFileText,
+        permission: 'logs.read',
       },
     ],
   },

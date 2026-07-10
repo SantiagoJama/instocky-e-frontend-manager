@@ -150,14 +150,16 @@ export async function updateBusinessUserRequest(
   return parseBusinessResponse<{ data: BusinessUser }>(response)
 }
 
-export async function inactivateBusinessUserRequest(
+export async function updateBusinessUserStatusRequest(
   businessId: string,
   businessUserId: string,
+  isActive: boolean,
   { accessToken }: RequestOptions,
 ) {
-  const response = await fetch(businessApiRoutes.user(businessId, businessUserId), {
-    method: 'DELETE',
-    headers: authHeaders(accessToken),
+  const response = await fetch(businessApiRoutes.userStatus(businessId, businessUserId), {
+    method: 'PATCH',
+    headers: jsonHeaders(accessToken),
+    body: JSON.stringify({ is_active: isActive }),
   })
 
   return parseBusinessResponse<{ data: BusinessUser }>(response)

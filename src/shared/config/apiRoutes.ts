@@ -25,6 +25,9 @@ const apiRoutes = {
     root: 'customers',
     byId: (customerId: string) => `customers/${customerId}`,
   },
+  logs: {
+    root: 'logs',
+  },
 } as const
 
 function joinUrl(baseUrl: string, path: string) {
@@ -49,6 +52,8 @@ export const businessApiRoutes = {
   users: (businessId: string) => apiUrl(`${apiRoutes.businesses.byId(businessId)}/users`),
   user: (businessId: string, businessUserId: string) =>
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}`),
+  userStatus: (businessId: string, businessUserId: string) =>
+    apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}/status`),
   userPassword: (businessId: string, businessUserId: string) =>
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/users/${businessUserId}/password`),
   businessModules: (businessId: string) => apiUrl(`${apiRoutes.businesses.byId(businessId)}/modules`),
@@ -79,4 +84,8 @@ export const permissionApiRoutes = {
   assignToUser: (userId: string) => apiUrl(apiRoutes.permissions.userRoot(userId)),
   userPermissionStatus: (userId: string, permissionId: string) =>
     apiUrl(`${apiRoutes.permissions.userPermission(userId, permissionId)}/status`),
+}
+
+export const logApiRoutes = {
+  list: () => apiUrl(apiRoutes.logs.root),
 }

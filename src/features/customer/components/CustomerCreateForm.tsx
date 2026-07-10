@@ -48,7 +48,7 @@ function createEmptyBusiness(): CreateBusinessPayload {
     },
     business_contact: {
       mobile_phone_number: '',
-      base_phone_number: '',
+      base_phone_number: 'N/A',
       email: '',
     },
     business_module: [],
@@ -398,7 +398,7 @@ export function CustomerCreateForm() {
                     <TextInput label="RUC" value={businessItem.business.ruc} required error={validationErrors[businessPath('business.ruc')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'ruc', value)} />
                     <TextInput label="Name" value={businessItem.business.the_name} required error={validationErrors[businessPath('business.the_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'the_name', value)} />
                     <TextInput label="Business type" value={businessItem.business.business_type} required error={validationErrors[businessPath('business.business_type')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'business_type', value)} />
-                    <TextInput label="Website" type="url" value={businessItem.business.website} required error={validationErrors[businessPath('business.website')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'website', value)} />
+                    <TextInput label="Website" value={businessItem.business.website} required error={validationErrors[businessPath('business.website')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'website', value)} />
                     <TextInput label="Tenant name" value={businessItem.business.tenant_name} readOnly error={validationErrors[businessPath('business.tenant_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'tenant_name', value)} />
                     <label className="check-field">
                       <input
@@ -645,7 +645,7 @@ function getPlaceholder(label: string, type: string) {
     RUC: 'Ej: 0999999999001',
     Name: 'Ej: Comercio Agil',
     'Business type': 'Ej: Retail',
-    Website: 'Ej: https://example.com',
+    Website: 'Ej: www.example.com.ec',
     'Tenant name': 'Ej: comercio_agil',
     Province: 'Ej: Pichincha',
     'Address 1': 'Ej: Avenida 10 / Norte',
@@ -806,20 +806,20 @@ function validateEmail(errors: ValidationErrors, path: string, value: string, in
 }
 
 function validateWebsite(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
-  if (!value.trim()) {
+  const trimmedValue = value.trim()
+
+  if (!trimmedValue) {
     if (includeRequired) {
       errors[path] = 'Website es obligatorio.'
     }
     return
   }
 
-  try {
-    const url = new URL(value)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      errors[path] = 'Usa una URL http o https.'
-    }
-  } catch {
-    errors[path] = 'Ingresa una URL valida.'
+  const websitePattern =
+    /^(https?:\/\/)?(www\.)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+(?:[/?#][^\s]*)?$/
+
+  if (!websitePattern.test(trimmedValue)) {
+    errors[path] = 'Ingresa un website valido, por ejemplo www.example.com.ec.'
   }
 }
 

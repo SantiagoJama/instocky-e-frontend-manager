@@ -180,7 +180,7 @@ export function getBusinessPlaceholder(label: string, type = 'text') {
     RUC: 'Ej: 0999999999001',
     Name: 'Ej: Comercio Agil',
     'Business type': 'Ej: Retail',
-    Website: 'Ej: https://example.com',
+    Website: 'Ej: www.example.com.ec',
     'Tenant name': 'Ej: comercio_agil',
     Country: 'Ej: Ecuador',
     City: 'Ej: Guayaquil',
@@ -269,20 +269,20 @@ function validateEmail(errors: ValidationErrors, path: string, value: string, in
 }
 
 function validateWebsite(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
-  if (!value.trim()) {
+  const trimmedValue = value.trim()
+
+  if (!trimmedValue) {
     if (includeRequired) {
       errors[path] = 'Website es obligatorio.'
     }
     return
   }
 
-  try {
-    const url = new URL(value)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      errors[path] = 'Usa una URL http o https.'
-    }
-  } catch {
-    errors[path] = 'Ingresa una URL valida.'
+  const websitePattern =
+    /^(https?:\/\/)?(www\.)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+(?:[/?#][^\s]*)?$/
+
+  if (!websitePattern.test(trimmedValue)) {
+    errors[path] = 'Ingresa un website valido, por ejemplo www.example.com.ec.'
   }
 }
 

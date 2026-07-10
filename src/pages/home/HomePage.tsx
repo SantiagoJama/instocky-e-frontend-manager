@@ -5,6 +5,7 @@ import type { AuthUser } from '../../features/auth/types/auth.types'
 import { navigationSections } from '../../features/dashboard/navigation'
 import { BusinessPage } from '../business/BusinessPage'
 import { CustomerPage } from '../customer/CustomerPage'
+import { LogsPage } from '../logs/LogsPage'
 import { PermissionPage } from '../permission/PermissionPage'
 import { UserPage } from '../user/UserPage'
 import { Sidebar } from '../../shared/components/sidebar/Sidebar'
@@ -55,6 +56,10 @@ export function HomePage() {
 
     if (effectiveActivePath === '/manager/permissions') {
       return <PermissionPage />
+    }
+
+    if (effectiveActivePath === '/manager/logs') {
+      return <LogsPage />
     }
 
     return <DashboardOverview activeLabel={activeItem ? `${activeItem.sectionLabel} / ${activeItem.label}` : 'Dashboard'} />
