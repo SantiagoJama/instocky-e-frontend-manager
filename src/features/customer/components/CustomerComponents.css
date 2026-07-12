@@ -168,6 +168,65 @@
   outline: 3px solid var(--color-focus);
 }
 
+.business-type-field {
+  position: relative;
+}
+
+.business-type-combobox {
+  position: relative;
+  min-width: 0;
+}
+
+.business-type-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 18rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.business-type-option {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-heading);
+  background: transparent;
+  text-align: left;
+}
+
+.business-type-option:last-child {
+  border-bottom: 0;
+}
+
+.business-type-option:hover,
+.business-type-option:focus-visible,
+.business-type-option[aria-selected='true'] {
+  background: var(--color-surface-raised);
+  outline: none;
+}
+
+.business-type-option small,
+.business-type-empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.business-type-empty {
+  margin: 0;
+  padding: var(--space-3);
+}
+
 .field-error {
   margin: 0;
   color: var(--color-danger);

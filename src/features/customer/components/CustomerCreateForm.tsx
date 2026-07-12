@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useBusinessModules } from '../hooks/useBusinessModules'
 import { createCustomerRequest } from '../services/customerApi'
+import { businessTypes } from '../constants/businessTypes'
 import {
   BASE_MONTHLY_PAYMENT,
   EXTRA_USER_MONTHLY_COST,
@@ -397,7 +398,7 @@ export function CustomerCreateForm() {
                   <div className="form-grid">
                     <TextInput label="RUC" value={businessItem.business.ruc} required error={validationErrors[businessPath('business.ruc')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'ruc', value)} />
                     <TextInput label="Name" value={businessItem.business.the_name} required error={validationErrors[businessPath('business.the_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'the_name', value)} />
-                    <TextInput label="Business type" value={businessItem.business.business_type} required error={validationErrors[businessPath('business.business_type')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'business_type', value)} />
+                    <BusinessTypeSelect value={businessItem.business.business_type} required error={validationErrors[businessPath('business.business_type')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'business_type', value)} />
                     <TextInput label="Website" value={businessItem.business.website} required error={validationErrors[businessPath('business.website')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'website', value)} />
                     <TextInput label="Tenant name" value={businessItem.business.tenant_name} readOnly error={validationErrors[businessPath('business.tenant_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'tenant_name', value)} />
                     <label className="check-field">
@@ -590,6 +591,83 @@ function TextInput({
   )
 }
 
+function BusinessTypeSelect({
+  value,
+  onChange,
+  required = false,
+  error,
+}: {
+  value: string
+  required?: boolean
+  error?: string
+  onChange: (value: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const selectedType = businessTypes.find((type) => type.business_type === value)
+  const normalizedSearch = search.trim().toLowerCase()
+  const filteredTypes = businessTypes.filter((type) => {
+    const searchableValue = `${type.business_type} ${type.description}`.toLowerCase()
+
+    return searchableValue.includes(normalizedSearch)
+  })
+
+  function handleSelect(nextValue: string) {
+    onChange(nextValue)
+    setSearch('')
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="input-field business-type-field">
+      <span>Business type</span>
+      <div className="business-type-combobox">
+        <input
+          type="search"
+          value={isOpen ? search : selectedType?.business_type ?? ''}
+          required={required && !value}
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-invalid={Boolean(error)}
+          placeholder="Search business type"
+          onBlur={() => setIsOpen(false)}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            setSearch('')
+            setIsOpen(true)
+          }}
+        />
+        {isOpen ? (
+          <div className="business-type-options" role="listbox">
+            {filteredTypes.length > 0 ? (
+              filteredTypes.map((type) => (
+                <button
+                  className="business-type-option"
+                  key={type.business_type}
+                  type="button"
+                  role="option"
+                  aria-selected={type.business_type === value}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(type.business_type)}
+                >
+                  <strong>{type.business_type}</strong>
+                  <small>{type.description}</small>
+                </button>
+              ))
+            ) : (
+              <p className="business-type-empty">No business types found.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
+      {error ? <small className="field-error">{error}</small> : null}
+    </div>
+  )
+}
+
 function NumberInput({
   label,
   value,
@@ -689,7 +767,7 @@ function validateCreateForm(payload: CreateCustomerPayload, includeRequired: boo
       pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 ]+$/,
       message: 'Solo letras, numeros y espacios.',
     })
-    validateLetters(errors, path('business.business_type'), businessItem.business.business_type, includeRequired, 'Business type')
+    validateBusinessType(errors, path('business.business_type'), businessItem.business.business_type, includeRequired)
     validateWebsite(errors, path('business.website'), businessItem.business.website, includeRequired)
     validateText(errors, path('business.tenant_name'), businessItem.business.tenant_name, {
       includeRequired,
@@ -770,6 +848,24 @@ function validateLetters(
     pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü ]+$/,
     message: 'Solo se permiten letras y espacios.',
   })
+}
+
+function validateBusinessType(
+  errors: ValidationErrors,
+  path: string,
+  value: string,
+  includeRequired: boolean,
+) {
+  if (!value.trim()) {
+    if (includeRequired) {
+      errors[path] = 'Business type es obligatorio.'
+    }
+    return
+  }
+
+  if (!businessTypes.some((type) => type.business_type === value)) {
+    errors[path] = 'Selecciona un business type de la lista.'
+  }
 }
 
 function validatePhone(
@@ -880,7 +976,7 @@ function sanitizeBusinessValue(section: BusinessSection, field: string, value: s
   }
 
   if (section === 'business' && field === 'business_type') {
-    return onlyLetters(value)
+    return value
   }
 
   if (section === 'business' && field === 'tenant_name') {
