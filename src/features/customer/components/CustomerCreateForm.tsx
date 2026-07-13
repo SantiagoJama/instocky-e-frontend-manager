@@ -3,9 +3,9 @@ import { FiKey, FiPlus, FiTrash2 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
+import { useBusinessTypes } from '../../category/hooks/useBusinessTypes'
 import { useBusinessModules } from '../hooks/useBusinessModules'
 import { createCustomerRequest } from '../services/customerApi'
-import { businessTypes } from '../constants/businessTypes'
 import {
   BASE_MONTHLY_PAYMENT,
   EXTRA_USER_MONTHLY_COST,
@@ -135,6 +135,11 @@ export function CustomerCreateForm() {
     accessToken,
     logoutOnUnauthorized,
   )
+  const {
+    businessTypes,
+    isLoading: isLoadingBusinessTypes,
+    error: businessTypesError,
+  } = useBusinessTypes(accessToken, logoutOnUnauthorized, { limit: 100 })
   const [form, setForm] = useState<CreateCustomerPayload>(() => createInitialForm())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -152,7 +157,10 @@ export function CustomerCreateForm() {
       ),
     [form.businesses],
   )
-  const validationErrors = useMemo(() => validateCreateForm(form, submitAttempted), [form, submitAttempted])
+  const validationErrors = useMemo(
+    () => validateCreateForm(form, submitAttempted, businessTypes),
+    [businessTypes, form, submitAttempted],
+  )
 
   function updateCustomerField(section: CustomerSection, field: string, value: string | boolean) {
     const nextValue = typeof value === 'string' ? sanitizeCustomerValue(section, field, value) : value
@@ -290,7 +298,7 @@ export function CustomerCreateForm() {
       return
     }
 
-    const submitErrors = validateCreateForm(form, true)
+    const submitErrors = validateCreateForm(form, true, businessTypes)
 
     if (Object.keys(submitErrors).length > 0) {
       await Swal.fire('Formulario incompleto', 'Revisa los campos marcados en rojo antes de enviar.', 'warning')
@@ -398,7 +406,15 @@ export function CustomerCreateForm() {
                   <div className="form-grid">
                     <TextInput label="RUC" value={businessItem.business.ruc} required error={validationErrors[businessPath('business.ruc')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'ruc', value)} />
                     <TextInput label="Name" value={businessItem.business.the_name} required error={validationErrors[businessPath('business.the_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'the_name', value)} />
-                    <BusinessTypeSelect value={businessItem.business.business_type} required error={validationErrors[businessPath('business.business_type')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'business_type', value)} />
+                    <BusinessTypeSelect
+                      value={businessItem.business.business_type}
+                      options={businessTypes}
+                      required
+                      isLoading={isLoadingBusinessTypes}
+                      loadError={businessTypesError}
+                      error={validationErrors[businessPath('business.business_type')]}
+                      onChange={(value) => updateBusinessField(businessIndex, 'business', 'business_type', value)}
+                    />
                     <TextInput label="Website" value={businessItem.business.website} required error={validationErrors[businessPath('business.website')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'website', value)} />
                     <TextInput label="Tenant name" value={businessItem.business.tenant_name} readOnly error={validationErrors[businessPath('business.tenant_name')]} onChange={(value) => updateBusinessField(businessIndex, 'business', 'tenant_name', value)} />
                     <label className="check-field">
@@ -593,21 +609,27 @@ function TextInput({
 
 function BusinessTypeSelect({
   value,
+  options,
   onChange,
   required = false,
+  isLoading = false,
+  loadError,
   error,
 }: {
   value: string
+  options: { business_type: string; short_description: string }[]
   required?: boolean
+  isLoading?: boolean
+  loadError?: string | null
   error?: string
   onChange: (value: string) => void
 }) {
   const [search, setSearch] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  const selectedType = businessTypes.find((type) => type.business_type === value)
+  const selectedType = options.find((type) => type.business_type === value)
   const normalizedSearch = search.trim().toLowerCase()
-  const filteredTypes = businessTypes.filter((type) => {
-    const searchableValue = `${type.business_type} ${type.description}`.toLowerCase()
+  const filteredTypes = options.filter((type) => {
+    const searchableValue = `${type.business_type} ${type.short_description}`.toLowerCase()
 
     return searchableValue.includes(normalizedSearch)
   })
@@ -642,7 +664,8 @@ function BusinessTypeSelect({
         />
         {isOpen ? (
           <div className="business-type-options" role="listbox">
-            {filteredTypes.length > 0 ? (
+            {isLoading ? <p className="business-type-empty">Loading business types...</p> : null}
+            {!isLoading && filteredTypes.length > 0 ? (
               filteredTypes.map((type) => (
                 <button
                   className="business-type-option"
@@ -654,15 +677,17 @@ function BusinessTypeSelect({
                   onClick={() => handleSelect(type.business_type)}
                 >
                   <strong>{type.business_type}</strong>
-                  <small>{type.description}</small>
+                  <small>{type.short_description}</small>
                 </button>
               ))
-            ) : (
+            ) : null}
+            {!isLoading && filteredTypes.length === 0 ? (
               <p className="business-type-empty">No business types found.</p>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
+      {loadError ? <small className="field-error">{loadError}</small> : null}
       {error ? <small className="field-error">{error}</small> : null}
     </div>
   )
@@ -740,7 +765,11 @@ function getPlaceholder(label: string, type: string) {
   return examples[label] ?? (type === 'email' ? 'Ej: user@example.com' : 'Escribe un valor')
 }
 
-function validateCreateForm(payload: CreateCustomerPayload, includeRequired: boolean): ValidationErrors {
+function validateCreateForm(
+  payload: CreateCustomerPayload,
+  includeRequired: boolean,
+  businessTypeOptions: { business_type: string }[],
+): ValidationErrors {
   const errors: ValidationErrors = {}
 
   validateText(errors, 'customer.identification', payload.customer.identification, {
@@ -767,7 +796,13 @@ function validateCreateForm(payload: CreateCustomerPayload, includeRequired: boo
       pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 ]+$/,
       message: 'Solo letras, numeros y espacios.',
     })
-    validateBusinessType(errors, path('business.business_type'), businessItem.business.business_type, includeRequired)
+    validateBusinessType(
+      errors,
+      path('business.business_type'),
+      businessItem.business.business_type,
+      includeRequired,
+      businessTypeOptions,
+    )
     validateWebsite(errors, path('business.website'), businessItem.business.website, includeRequired)
     validateText(errors, path('business.tenant_name'), businessItem.business.tenant_name, {
       includeRequired,
@@ -855,6 +890,7 @@ function validateBusinessType(
   path: string,
   value: string,
   includeRequired: boolean,
+  businessTypeOptions: { business_type: string }[],
 ) {
   if (!value.trim()) {
     if (includeRequired) {
@@ -863,7 +899,7 @@ function validateBusinessType(
     return
   }
 
-  if (!businessTypes.some((type) => type.business_type === value)) {
+  if (businessTypeOptions.length > 0 && !businessTypeOptions.some((type) => type.business_type === value)) {
     errors[path] = 'Selecciona un business type de la lista.'
   }
 }

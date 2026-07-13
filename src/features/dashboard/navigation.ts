@@ -1,5 +1,5 @@
 import type { IconType } from 'react-icons'
-import { FiBriefcase, FiEye, FiFileText, FiPlusCircle, FiUsers } from 'react-icons/fi'
+import { FiBriefcase, FiEye, FiFileText, FiGrid, FiLayers, FiPlusCircle, FiUsers } from 'react-icons/fi'
 
 export type NavigationChild = {
   id: string
@@ -49,6 +49,20 @@ export const navigationSections: NavigationSection[] = [
         path: '/business/view',
         icon: FiEye,
         permission: 'businesses.read',
+      },
+      {
+        id: 'business-categories',
+        label: 'Categories',
+        path: '/business/categories',
+        icon: FiGrid,
+        permission: 'businesses.types.read',
+      },
+      {
+        id: 'business-types',
+        label: 'Business types',
+        path: '/business/types',
+        icon: FiLayers,
+        permission: 'businesses.types.read',
       },
     ],
   },

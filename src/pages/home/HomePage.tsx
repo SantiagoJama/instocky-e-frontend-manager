@@ -4,6 +4,8 @@ import { useAuth } from '../../features/auth/hooks/useAuth'
 import type { AuthUser } from '../../features/auth/types/auth.types'
 import { navigationSections } from '../../features/dashboard/navigation'
 import { BusinessPage } from '../business/BusinessPage'
+import { BusinessTypePage } from '../business-type/BusinessTypePage'
+import { CategoryPage } from '../category/CategoryPage'
 import { CustomerPage } from '../customer/CustomerPage'
 import { LogsPage } from '../logs/LogsPage'
 import { PermissionPage } from '../permission/PermissionPage'
@@ -48,6 +50,14 @@ export function HomePage() {
 
     if (effectiveActivePath === '/business/view') {
       return <BusinessPage />
+    }
+
+    if (effectiveActivePath === '/business/categories') {
+      return <CategoryPage />
+    }
+
+    if (effectiveActivePath === '/business/types') {
+      return <BusinessTypePage />
     }
 
     if (effectiveActivePath === '/manager/view') {

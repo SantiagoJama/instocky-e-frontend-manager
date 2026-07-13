@@ -10,6 +10,12 @@ const apiRoutes = {
     root: 'businesses',
     byId: (businessId: string) => `businesses/${businessId}`,
     modules: 'businesses/modules',
+    types: 'businesses/types',
+    typesAll: 'businesses/types/all',
+    typeById: (businessTypeId: string) => `businesses/types/${businessTypeId}`,
+    categories: (businessTypeId: string) => `businesses/types/${businessTypeId}/categories`,
+    categoryById: (businessTypeId: string, businessCategoryId: string) =>
+      `businesses/types/${businessTypeId}/categories/${businessCategoryId}`,
   },
   users: {
     root: 'users',
@@ -60,6 +66,16 @@ export const businessApiRoutes = {
   moduleStatus: (businessId: string, moduleId: string) =>
     apiUrl(`${apiRoutes.businesses.byId(businessId)}/modules/${moduleId}/status`),
   modules: () => apiUrl(apiRoutes.businesses.modules),
+  types: () => apiUrl(apiRoutes.businesses.types),
+  typesAll: () => apiUrl(apiRoutes.businesses.typesAll),
+  createType: () => apiUrl(apiRoutes.businesses.types),
+  updateType: (businessTypeId: string) => apiUrl(apiRoutes.businesses.typeById(businessTypeId)),
+  typeStatus: (businessTypeId: string) => apiUrl(`${apiRoutes.businesses.typeById(businessTypeId)}/status`),
+  categories: (businessTypeId: string) => apiUrl(apiRoutes.businesses.categories(businessTypeId)),
+  updateCategory: (businessTypeId: string, businessCategoryId: string) =>
+    apiUrl(apiRoutes.businesses.categoryById(businessTypeId, businessCategoryId)),
+  categoryStatus: (businessTypeId: string, businessCategoryId: string) =>
+    apiUrl(`${apiRoutes.businesses.categoryById(businessTypeId, businessCategoryId)}/status`),
 }
 
 export const customerApiRoutes = {
