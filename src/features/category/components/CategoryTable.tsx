@@ -267,6 +267,7 @@ function BusinessTypeCategoriesModal({
               <tr>
                 <th>ID</th>
                 <th>Category</th>
+                <th>IVA tax value</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Action</th>
@@ -275,13 +276,14 @@ function BusinessTypeCategoriesModal({
             <tbody>
               {categories.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>No categories found for this business type.</td>
+                  <td colSpan={6}>No categories found for this business type.</td>
                 </tr>
               ) : null}
               {categories.map((category) => (
                 <tr key={category.id}>
                   <td>{category.id}</td>
                   <td>{category.category}</td>
+                  <td>{formatTaxValue(category.iva_tax_value)}%</td>
                   <td>{category.is_active ? 'Active' : 'Inactive'}</td>
                   <td>{formatDate(category.created_at)}</td>
                   <td>
@@ -336,6 +338,7 @@ function CategoryFormModal({
   const [businessTypeId, setBusinessTypeId] = useState(category?.business_type_id ?? '')
   const [form, setForm] = useState<CreateBusinessCategoryPayload>({
     category: category?.category ?? '',
+    iva_tax_value: category?.iva_tax_value ?? '',
   })
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -412,7 +415,14 @@ function CategoryFormModal({
               value={form.category}
               required
               error={errors.category}
-              onChange={(value) => setForm({ category: sanitizeCategoryValue(value) })}
+              onChange={(value) => updateField('category', value)}
+            />
+            <TextInput
+              label="IVA tax value"
+              value={form.iva_tax_value}
+              required
+              error={errors.iva_tax_value}
+              onChange={(value) => updateField('iva_tax_value', value)}
             />
           </div>
           <div className="form-actions">
@@ -427,6 +437,13 @@ function CategoryFormModal({
       </section>
     </div>
   )
+
+  function updateField(field: keyof CreateBusinessCategoryPayload, value: string) {
+    setForm((current) => ({
+      ...current,
+      [field]: sanitizeCategoryFormValue(field, value),
+    }))
+  }
 }
 
 function BusinessTypeCombobox({
@@ -539,12 +556,21 @@ function TextInput({
         value={value}
         required={required}
         aria-invalid={Boolean(error)}
-        placeholder="Ej: Restaurants"
+        placeholder={getPlaceholder(label)}
         onChange={(event) => onChange(event.target.value)}
       />
       {error ? <small className="field-error">{error}</small> : null}
     </label>
   )
+}
+
+function getPlaceholder(label: string) {
+  const examples: Record<string, string> = {
+    Category: 'Ej: Restaurants',
+    'IVA tax value': 'Ej: 12.00',
+  }
+
+  return examples[label] ?? 'Escribe un valor'
 }
 
 function validateCategoryForm(form: CreateBusinessCategoryPayload, businessTypeId: string, includeRequired: boolean) {
@@ -560,6 +586,7 @@ function validateCategoryForm(form: CreateBusinessCategoryPayload, businessTypeI
     pattern: /^[\p{L}0-9 .,_/-]+$/u,
     message: 'Solo letras, numeros y puntuacion basica.',
   })
+  validateTaxValue(errors, 'iva_tax_value', form.iva_tax_value, includeRequired)
 
   return errors
 }
@@ -582,14 +609,40 @@ function validateText(
   }
 }
 
-function sanitizeCategoryValue(value: string) {
+function validateTaxValue(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
+  const trimmedValue = value.trim()
+
+  if (!trimmedValue) {
+    if (includeRequired) {
+      errors[path] = 'IVA tax value es obligatorio.'
+    }
+    return
+  }
+
+  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmedValue)) {
+    errors[path] = 'Usa un numero con maximo 2 decimales.'
+  }
+}
+
+function sanitizeCategoryFormValue(field: keyof CreateBusinessCategoryPayload, value: string) {
+  if (field === 'iva_tax_value') {
+    return value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1').slice(0, 12)
+  }
+
   return value.replace(/[^\p{L}0-9 .,_/-]/gu, '').slice(0, 255)
 }
 
 function normalizeCategoryPayload(form: CreateBusinessCategoryPayload) {
   return {
     category: form.category.trim(),
+    iva_tax_value: formatTaxValue(form.iva_tax_value),
   }
+}
+
+function formatTaxValue(value: string) {
+  const numericValue = Number(value)
+
+  return Number.isFinite(numericValue) ? numericValue.toFixed(2) : value
 }
 
 function canAccessPermission(user: ReturnType<typeof useAuth>['user'], permission: string) {

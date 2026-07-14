@@ -2,6 +2,7 @@ export type BusinessCategory = {
   id: string
   business_type_id: string
   category: string
+  iva_tax_value: string
   is_active: boolean
   created_at: string
 }
@@ -31,6 +32,7 @@ export type CategoryPagination = {
 
 export type CreateBusinessCategoryPayload = {
   category: string
+  iva_tax_value: string
 }
 
 export type CreateBusinessTypePayload = {
