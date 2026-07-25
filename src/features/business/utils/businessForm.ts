@@ -125,7 +125,7 @@ export function sanitizeBusinessUserValue(field: keyof BusinessUserPayload, valu
 }
 
 export function toTenantName(value: string) {
-  return value.trim().replace(/\s+/g, '_')
+  return value.trim().replace(/\s+/g, '_').toLowerCase()
 }
 
 export function createSecurePassword() {
@@ -151,7 +151,7 @@ export function normalizeBusinessEditPayload(form: BusinessEditForm): UpdateBusi
       the_name: form.business.the_name?.trim(),
       business_type: form.business.business_type?.trim(),
       website: form.business.website?.trim(),
-      tenant_name: form.business.tenant_name?.trim(),
+      tenant_name: form.business.tenant_name ? toTenantName(form.business.tenant_name) : form.business.tenant_name,
     },
     business_location: {
       ...form.business_location,

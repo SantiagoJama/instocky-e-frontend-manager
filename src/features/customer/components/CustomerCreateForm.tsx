@@ -1069,7 +1069,7 @@ function sanitizeBasePhone(value: string) {
 }
 
 function toTenantName(value: string) {
-  return value.trim().replace(/\s+/g, '_')
+  return value.trim().replace(/\s+/g, '_').toLowerCase()
 }
 
 function createSecurePassword() {
@@ -1113,7 +1113,7 @@ function normalizeCreatePayload(payload: CreateCustomerPayload): CreateCustomerP
       business: {
         ...businessItem.business,
         ruc: businessItem.business.ruc.trim(),
-        tenant_name: businessItem.business.tenant_name.trim(),
+        tenant_name: toTenantName(businessItem.business.tenant_name),
       },
       business_contact: {
         ...businessItem.business_contact,
