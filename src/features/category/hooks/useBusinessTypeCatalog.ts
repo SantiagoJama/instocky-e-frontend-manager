@@ -18,7 +18,12 @@ export function useBusinessTypeCatalog(accessToken: string | null, onUnauthorize
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const requestPage = Math.max(1, page)
+  const safeTotalPages = Math.max(1, pagination.totalPages)
+  const requestPage = Math.min(Math.max(1, page), safeTotalPages)
+  const setSafePage = useCallback(
+    (nextPage: number) => setPage(Math.min(Math.max(1, nextPage), safeTotalPages)),
+    [safeTotalPages],
+  )
 
   const loadBusinessTypes = useCallback(async () => {
     if (!accessToken) {
@@ -93,27 +98,14 @@ export function useBusinessTypeCatalog(accessToken: string | null, onUnauthorize
     }
   }, [accessToken, onUnauthorized, requestPage, search])
 
-  useEffect(() => {
-    const safeTotalPages = Math.max(1, pagination.totalPages)
-
-    if (page < 1) {
-      setPage(1)
-      return
-    }
-
-    if (page > safeTotalPages) {
-      setPage(safeTotalPages)
-    }
-  }, [page, pagination.totalPages])
-
   return {
     businessTypes,
     pagination,
-    page,
+    page: requestPage,
     search,
     isLoading,
     error,
-    setPage,
+    setPage: setSafePage,
     setSearch,
     reload: loadBusinessTypes,
   }

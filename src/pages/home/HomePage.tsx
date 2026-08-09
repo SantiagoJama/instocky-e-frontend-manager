@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FiActivity, FiDatabase, FiMenu, FiShield } from 'react-icons/fi'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import type { AuthUser } from '../../features/auth/types/auth.types'
@@ -18,7 +18,7 @@ export function HomePage() {
   const fullName = user ? `${user.firstName} ${user.lastName}`.trim() : ''
   const visibleNavigationSections = useMemo(() => getVisibleNavigationSections(user), [user])
   const defaultPath = visibleNavigationSections[0]?.children[0]?.path ?? '/'
-  const [activePath, setActivePath] = useState(defaultPath)
+  const [activePath, setActivePath] = useState(getCurrentNavigationPath)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const effectiveActivePath = useMemo(() => {
     const isActivePathVisible = visibleNavigationSections.some((section) =>
@@ -27,6 +27,19 @@ export function HomePage() {
 
     return isActivePathVisible ? activePath : defaultPath
   }, [activePath, defaultPath, visibleNavigationSections])
+
+  useEffect(() => {
+    function handlePopState() {
+      setActivePath(getCurrentNavigationPath())
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
+    replaceBrowserPath(effectiveActivePath)
+  }, [effectiveActivePath])
 
   const activeItem = useMemo(() => {
     return visibleNavigationSections
@@ -56,7 +69,7 @@ export function HomePage() {
       return <CategoryPage />
     }
 
-    if (effectiveActivePath === '/business/types') {
+    if (effectiveActivePath === '/business/business-types') {
       return <BusinessTypePage />
     }
 
@@ -76,7 +89,9 @@ export function HomePage() {
   }, [activeItem, effectiveActivePath])
 
   function handleNavigate(path: string) {
-    setActivePath(path)
+    const nextPath = normalizeNavigationPath(path)
+    setActivePath(nextPath)
+    pushBrowserPath(nextPath)
     setIsSidebarOpen(false)
   }
 
@@ -124,6 +139,30 @@ export function HomePage() {
       </main>
     </div>
   )
+}
+
+const legacyNavigationPaths: Record<string, string> = {
+  '/business/types': '/business/business-types',
+}
+
+function normalizeNavigationPath(path: string) {
+  return legacyNavigationPaths[path] ?? path
+}
+
+function getCurrentNavigationPath() {
+  return normalizeNavigationPath(window.location.pathname)
+}
+
+function pushBrowserPath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.pushState(null, '', path)
+  }
+}
+
+function replaceBrowserPath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.replaceState(null, '', path)
+  }
 }
 
 function getVisibleNavigationSections(user: AuthUser | null) {

@@ -1,0 +1,27 @@
+packages:
+  - '.'
+
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 525600
+trustLockfile: false
+
+blockExoticSubdeps: true
+
+registries:
+  default: https://registry.npmjs.org/
+
+strictDepBuilds: true
+allowBuilds: {}
+sideEffectsCache: false
+
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+
+saveExact: true
+autoInstallPeers: false
+strictPeerDependencies: true
+engineStrict: true

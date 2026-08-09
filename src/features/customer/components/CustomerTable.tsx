@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { FiEdit2, FiRefreshCw } from 'react-icons/fi'
 import Swal from 'sweetalert2'
+import { z } from 'zod'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useCustomers } from '../hooks/useCustomers'
@@ -14,6 +15,34 @@ import './CustomerComponents.css'
 import { formatDate } from '../../../shared/utils/convertionDate'
 
 type ValidationErrors = Record<string, string>
+
+function numericTextSchema(label: string, maxLength: number) {
+  return z.string()
+    .trim()
+    .min(1, `${label} es obligatorio.`)
+    .regex(/^\d+$/, 'Solo se permiten digitos.')
+    .max(maxLength, `Maximo ${maxLength} digitos.`)
+}
+
+function lettersSchema(label: string) {
+  return z.string()
+    .trim()
+    .min(1, `${label} es obligatorio.`)
+    .regex(/^[\p{L}\p{M} ]+$/u, 'Solo se permiten letras y espacios.')
+}
+
+const identificationSchema = numericTextSchema('Identification', 10)
+const phoneSchema = numericTextSchema('Mobile phone', 10)
+const emailSchema = z.string()
+  .trim()
+  .min(1, 'Email es obligatorio.')
+  .email('Ingresa un email valido.')
+const basePhoneSchema = z.string()
+  .trim()
+  .transform((value) => value.toUpperCase())
+  .refine((value) => value === '' || value === 'N/A' || /^\d{1,10}$/.test(value), {
+    message: 'Usa N/A o solo digitos, maximo 10.',
+  })
 
 type EditState = {
   customer: {
@@ -286,7 +315,7 @@ function CustomerEditModal({
             <legend>Customer contact</legend>
             <div className="form-grid">
               <TextInput label="Mobile phone" value={form.customer_contact.mobile_phone_number} required error={validationErrors['customer_contact.mobile_phone_number']} onChange={(value) => updateContact('mobile_phone_number', value)} />
-              <TextInput label="Base phone" value={form.customer_contact.base_phone_number} required error={validationErrors['customer_contact.base_phone_number']} onChange={(value) => updateContact('base_phone_number', value)} />
+              <TextInput label="Base phone" value={form.customer_contact.base_phone_number} error={validationErrors['customer_contact.base_phone_number']} onChange={(value) => updateContact('base_phone_number', value)} />
               <TextInput label="Email" type="email" value={form.customer_contact.email} required error={validationErrors['customer_contact.email']} onChange={(value) => updateContact('email', value)} />
             </div>
           </fieldset>
@@ -377,9 +406,14 @@ function toUpdatePayload(form: EditState): UpdateCustomerPayload {
     },
     customer_contact: {
       ...form.customer_contact,
+      base_phone_number: normalizeOptionalDefault(form.customer_contact.base_phone_number),
       email: form.customer_contact.email.trim().toLowerCase(),
     },
   }
+}
+
+function normalizeOptionalDefault(value: string) {
+  return value.trim() || 'N/A'
 }
 
 function validateEditForm(form: EditState, includeRequired: boolean): ValidationErrors {
@@ -388,18 +422,47 @@ function validateEditForm(form: EditState, includeRequired: boolean): Validation
   validateText(errors, 'customer.identification', form.customer.identification, {
     includeRequired,
     label: 'Identification',
-    pattern: /^[A-Za-z0-9]{1,15}$/,
-    message: 'Solo letras y digitos, maximo 15 caracteres.',
+    pattern: /^\d{1,10}$/,
+    message: 'Solo digitos, maximo 10.',
   })
   validateLetters(errors, 'customer.first_name', form.customer.first_name, includeRequired, 'First name')
   validateLetters(errors, 'customer.last_name', form.customer.last_name, includeRequired, 'Last name')
   validateLetters(errors, 'customer.country', form.customer.country, includeRequired, 'Country')
   validateLetters(errors, 'customer.city', form.customer.city, includeRequired, 'City')
   validatePhone(errors, 'customer_contact.mobile_phone_number', form.customer_contact.mobile_phone_number, includeRequired)
-  validateBasePhone(errors, 'customer_contact.base_phone_number', form.customer_contact.base_phone_number, includeRequired)
+  validateBasePhone(errors, 'customer_contact.base_phone_number', form.customer_contact.base_phone_number, false)
   validateEmail(errors, 'customer_contact.email', form.customer_contact.email, includeRequired)
+  validateZodField(errors, 'customer.identification', form.customer.identification, identificationSchema, includeRequired)
+  validateZodField(errors, 'customer.first_name', form.customer.first_name, lettersSchema('First name'), includeRequired)
+  validateZodField(errors, 'customer.last_name', form.customer.last_name, lettersSchema('Last name'), includeRequired)
+  validateZodField(errors, 'customer.country', form.customer.country, lettersSchema('Country'), includeRequired)
+  validateZodField(errors, 'customer.city', form.customer.city, lettersSchema('City'), includeRequired)
+  validateZodField(errors, 'customer_contact.mobile_phone_number', form.customer_contact.mobile_phone_number, phoneSchema, includeRequired)
+  validateZodField(errors, 'customer_contact.base_phone_number', form.customer_contact.base_phone_number, basePhoneSchema, true)
+  validateZodField(errors, 'customer_contact.email', form.customer_contact.email, emailSchema, includeRequired)
 
   return errors
+}
+
+function validateZodField(
+  errors: ValidationErrors,
+  path: string,
+  value: unknown,
+  schema: z.ZodType,
+  includeRequired: boolean,
+) {
+  if (!includeRequired && typeof value === 'string' && !value.trim()) {
+    delete errors[path]
+    return
+  }
+
+  const result = schema.safeParse(value)
+  if (result.success) {
+    delete errors[path]
+    return
+  }
+
+  errors[path] = result.error.issues[0]?.message ?? 'Valor invalido.'
 }
 
 function validateText(
@@ -445,8 +508,8 @@ function validatePhone(
   validateText(errors, path, value, {
     includeRequired,
     label,
-    pattern: /^\d{1,15}$/,
-    message: 'Solo digitos, maximo 15.',
+    pattern: /^\d{1,10}$/,
+    message: 'Solo digitos, maximo 10.',
   })
 }
 
@@ -454,8 +517,8 @@ function validateBasePhone(errors: ValidationErrors, path: string, value: string
   validateText(errors, path, value, {
     includeRequired,
     label: 'Base phone',
-    pattern: /^(N\/A|\d{1,15})$/,
-    message: 'Usa N/A o solo digitos, maximo 15.',
+    pattern: /^(N\/A|\d{1,10})$/,
+    message: 'Usa N/A o solo digitos, maximo 10.',
   })
 }
 
@@ -470,7 +533,7 @@ function validateEmail(errors: ValidationErrors, path: string, value: string, in
 
 function sanitizeCustomerValue(field: keyof EditState['customer'], value: string) {
   if (field === 'identification') {
-    return value.replace(/[^A-Za-z0-9]/g, '').slice(0, 15)
+    return onlyDigits(value, 10)
   }
 
   if (['first_name', 'last_name', 'country', 'city'].includes(field)) {
@@ -482,7 +545,7 @@ function sanitizeCustomerValue(field: keyof EditState['customer'], value: string
 
 function sanitizeContactValue(field: keyof CustomerContact, value: string) {
   if (field === 'mobile_phone_number') {
-    return onlyDigits(value, 15)
+    return onlyDigits(value, 10)
   }
 
   if (field === 'base_phone_number') {
@@ -507,5 +570,5 @@ function sanitizeBasePhone(value: string) {
     return upperValue
   }
 
-  return onlyDigits(value, 15)
+  return onlyDigits(value, 10)
 }

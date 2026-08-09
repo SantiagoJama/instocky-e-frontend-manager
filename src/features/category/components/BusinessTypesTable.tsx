@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { FiEdit2, FiPlus, FiRefreshCw, FiSlash, FiUnlock } from 'react-icons/fi'
 import { Tooltip } from 'react-tooltip'
 import Swal from 'sweetalert2'
+import { z } from 'zod'
 import { formatDate } from '../../../shared/utils/convertionDate'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
@@ -15,6 +16,18 @@ import type { BusinessTypeCatalogItem, CreateBusinessTypePayload } from '../type
 import './CategoryComponents.css'
 
 type ValidationErrors = Record<string, string>
+
+const businessTypeSchema = z.string()
+  .trim()
+  .min(1, 'Business type es obligatorio.')
+  .max(255, 'Business type debe tener maximo 255 caracteres.')
+  .regex(/^[\p{L}\p{M} ]+$/u, 'Business type solo permite letras y espacios.')
+
+const businessTypeDescriptionSchema = z.string()
+  .trim()
+  .min(1, 'Description es obligatorio.')
+  .max(500, 'Description debe tener maximo 500 caracteres.')
+  .regex(/^[\p{L}\p{M} ]+$/u, 'Description solo permite letras y espacios.')
 
 export function BusinessTypesTable() {
   const { accessToken, user } = useAuth()
@@ -359,44 +372,33 @@ function TextInput({
 function validateBusinessTypeForm(form: CreateBusinessTypePayload, includeRequired: boolean) {
   const errors: ValidationErrors = {}
 
-  validateText(errors, 'business_type', form.business_type, {
-    includeRequired,
-    label: 'Business type',
-    maxLength: 255,
-  })
-  validateText(errors, 'short_description', form.short_description, {
-    includeRequired,
-    label: 'Description',
-    maxLength: 500,
-  })
+  validateZodField(errors, 'business_type', form.business_type, businessTypeSchema, includeRequired)
+  validateZodField(errors, 'short_description', form.short_description, businessTypeDescriptionSchema, includeRequired)
 
   return errors
 }
 
-function validateText(
+function validateZodField(
   errors: ValidationErrors,
   path: string,
-  value: string,
-  options: { includeRequired: boolean; label: string; maxLength: number },
+  value: unknown,
+  schema: z.ZodType,
+  includeRequired: boolean,
 ) {
-  const trimmedValue = value.trim()
-
-  if (!trimmedValue) {
-    if (options.includeRequired) {
-      errors[path] = `${options.label} es obligatorio.`
-    }
+  if (!includeRequired && typeof value === 'string' && !value.trim()) {
     return
   }
 
-  if (trimmedValue.length > options.maxLength) {
-    errors[path] = `${options.label} debe tener maximo ${options.maxLength} caracteres.`
+  const result = schema.safeParse(value)
+  if (!result.success) {
+    errors[path] = result.error.issues[0]?.message ?? 'Valor invalido.'
   }
 }
 
 function sanitizeBusinessTypeValue(field: keyof CreateBusinessTypePayload, value: string) {
   const maxLength = field === 'business_type' ? 255 : 500
 
-  return value.slice(0, maxLength)
+  return value.replace(/[^\p{L}\p{M} ]/gu, '').slice(0, maxLength)
 }
 
 function normalizeBusinessTypePayload(form: CreateBusinessTypePayload) {

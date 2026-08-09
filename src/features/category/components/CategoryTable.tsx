@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { FiEdit2, FiList, FiPlus, FiRefreshCw, FiSlash, FiUnlock } from 'react-icons/fi'
 import { Tooltip } from 'react-tooltip'
 import Swal from 'sweetalert2'
+import { z } from 'zod'
 import { formatDate } from '../../../shared/utils/convertionDate'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
@@ -15,6 +16,18 @@ import type { BusinessType, CategoryTableItem, CreateBusinessCategoryPayload } f
 import './CategoryComponents.css'
 
 type ValidationErrors = Record<string, string>
+
+const categorySchema = z.string()
+  .trim()
+  .min(1, 'Category es obligatorio.')
+  .max(255, 'Maximo 255 caracteres.')
+  .regex(/^[\p{L}\p{M} ]+$/u, 'Solo se permiten letras y espacios.')
+
+const ivaTaxValueSchema = z.string()
+  .trim()
+  .refine((value) => value === '' || /^[1-9]\d*$/.test(value), {
+    message: 'IVA tax value debe ser un numero entero mayor a 0.',
+  })
 
 export function CategoryTable() {
   const { accessToken, user } = useAuth()
@@ -336,19 +349,17 @@ function CategoryFormModal({
   } = useBusinessTypes(accessToken, logoutOnUnauthorized, { limit: 100 })
   const availableBusinessTypes = businessTypeOptions.length > 0 ? businessTypeOptions : businessTypes
   const [businessTypeId, setBusinessTypeId] = useState(category?.business_type_id ?? '')
+  const selectedBusinessTypeId = businessTypeId || (!category ? availableBusinessTypes[0]?.id ?? '' : '')
   const [form, setForm] = useState<CreateBusinessCategoryPayload>({
     category: category?.category ?? '',
     iva_tax_value: category?.iva_tax_value ?? '',
   })
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const errors = useMemo(() => validateCategoryForm(form, businessTypeId, submitAttempted), [businessTypeId, form, submitAttempted])
-
-  useEffect(() => {
-    if (!category && !businessTypeId && availableBusinessTypes[0]) {
-      setBusinessTypeId(availableBusinessTypes[0].id)
-    }
-  }, [availableBusinessTypes, businessTypeId, category])
+  const errors = useMemo(
+    () => validateCategoryForm(form, selectedBusinessTypeId, submitAttempted),
+    [form, selectedBusinessTypeId, submitAttempted],
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -359,7 +370,7 @@ function CategoryFormModal({
       return
     }
 
-    const submitErrors = validateCategoryForm(form, businessTypeId, true)
+    const submitErrors = validateCategoryForm(form, selectedBusinessTypeId, true)
     if (Object.keys(submitErrors).length > 0) {
       await Swal.fire('Formulario incompleto', 'Revisa los campos marcados en rojo.', 'warning')
       return
@@ -373,7 +384,7 @@ function CategoryFormModal({
       if (category) {
         await updateBusinessCategoryRequest(category.business_type_id, category.id, payload, { accessToken })
       } else {
-        await createBusinessCategoryRequest(businessTypeId, payload, { accessToken })
+        await createBusinessCategoryRequest(selectedBusinessTypeId, payload, { accessToken })
       }
 
       await Swal.fire(category ? 'Categoria actualizada' : 'Categoria creada', 'Los cambios fueron guardados.', 'success')
@@ -402,7 +413,7 @@ function CategoryFormModal({
         <form className="category-form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <BusinessTypeCombobox
-              value={businessTypeId}
+              value={selectedBusinessTypeId}
               options={availableBusinessTypes}
               disabled={Boolean(category)}
               isLoading={isLoadingBusinessTypeOptions}
@@ -420,7 +431,6 @@ function CategoryFormModal({
             <TextInput
               label="IVA tax value"
               value={form.iva_tax_value}
-              required
               error={errors.iva_tax_value}
               onChange={(value) => updateField('iva_tax_value', value)}
             />
@@ -567,7 +577,7 @@ function TextInput({
 function getPlaceholder(label: string) {
   const examples: Record<string, string> = {
     Category: 'Ej: Restaurants',
-    'IVA tax value': 'Ej: 12.00',
+    'IVA tax value': 'Ej: 12',
   }
 
   return examples[label] ?? 'Escribe un valor'
@@ -580,56 +590,35 @@ function validateCategoryForm(form: CreateBusinessCategoryPayload, businessTypeI
     errors.businessTypeId = 'Business type es obligatorio.'
   }
 
-  validateText(errors, 'category', form.category, {
-    includeRequired,
-    label: 'Category',
-    pattern: /^[\p{L}0-9 .,_/-]+$/u,
-    message: 'Solo letras, numeros y puntuacion basica.',
-  })
-  validateTaxValue(errors, 'iva_tax_value', form.iva_tax_value, includeRequired)
+  validateZodField(errors, 'category', form.category, categorySchema, includeRequired)
+  validateZodField(errors, 'iva_tax_value', form.iva_tax_value, ivaTaxValueSchema, true)
 
   return errors
 }
 
-function validateText(
+function validateZodField(
   errors: ValidationErrors,
   path: string,
-  value: string,
-  options: { includeRequired: boolean; label: string; pattern: RegExp; message: string },
+  value: unknown,
+  schema: z.ZodType,
+  includeRequired: boolean,
 ) {
-  if (!value.trim()) {
-    if (options.includeRequired) {
-      errors[path] = `${options.label} es obligatorio.`
-    }
+  if (!includeRequired && typeof value === 'string' && !value.trim()) {
     return
   }
 
-  if (!options.pattern.test(value.trim())) {
-    errors[path] = options.message
-  }
-}
-
-function validateTaxValue(errors: ValidationErrors, path: string, value: string, includeRequired: boolean) {
-  const trimmedValue = value.trim()
-
-  if (!trimmedValue) {
-    if (includeRequired) {
-      errors[path] = 'IVA tax value es obligatorio.'
-    }
-    return
-  }
-
-  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmedValue)) {
-    errors[path] = 'Usa un numero con maximo 2 decimales.'
+  const result = schema.safeParse(value)
+  if (!result.success) {
+    errors[path] = result.error.issues[0]?.message ?? 'Valor invalido.'
   }
 }
 
 function sanitizeCategoryFormValue(field: keyof CreateBusinessCategoryPayload, value: string) {
   if (field === 'iva_tax_value') {
-    return value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1').slice(0, 12)
+    return value.replace(/\D/g, '').slice(0, 12)
   }
 
-  return value.replace(/[^\p{L}0-9 .,_/-]/gu, '').slice(0, 255)
+  return value.replace(/[^\p{L}\p{M} ]/gu, '').slice(0, 255)
 }
 
 function normalizeCategoryPayload(form: CreateBusinessCategoryPayload) {
@@ -640,6 +629,10 @@ function normalizeCategoryPayload(form: CreateBusinessCategoryPayload) {
 }
 
 function formatTaxValue(value: string) {
+  if (!value.trim()) {
+    return '0.00'
+  }
+
   const numericValue = Number(value)
 
   return Number.isFinite(numericValue) ? numericValue.toFixed(2) : value

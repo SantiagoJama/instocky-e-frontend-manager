@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { FiKey, FiPlus, FiTrash2 } from 'react-icons/fi'
 import Swal from 'sweetalert2'
+import { z } from 'zod'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useLogoutOnUnauthorized } from '../../auth/hooks/useLogoutOnUnauthorized'
 import { useBusinessTypes } from '../../category/hooks/useBusinessTypes'
@@ -29,6 +30,84 @@ const emptyUser: BusinessUserPayload = {
 }
 
 type ValidationErrors = Record<string, string>
+
+function numericTextSchema(label: string, maxLength: number) {
+  return z.string()
+    .trim()
+    .min(1, `${label} es obligatorio.`)
+    .regex(/^\d+$/, 'Solo se permiten digitos.')
+    .max(maxLength, `Maximo ${maxLength} digitos.`)
+}
+
+const identificationSchema = numericTextSchema('Identification', 10)
+const phoneSchema = numericTextSchema('Mobile phone', 10)
+
+const customerMobilePhoneSchema = z.string()
+  .trim()
+  .regex(/^\d{10}$/, 'Mobile phone debe tener exactamente 10 digitos.')
+
+const rucSchema = z.string()
+  .trim()
+  .min(1, 'RUC es obligatorio.')
+  .regex(/^\d+$/, 'Solo se permiten digitos.')
+  .min(10, 'Minimo 10 digitos.')
+  .max(13, 'Maximo 13 digitos.')
+
+function lettersSchema(label: string) {
+  return z.string()
+    .trim()
+    .min(1, `${label} es obligatorio.`)
+    .regex(/^[\p{L}\p{M} ]+$/u, 'Solo se permiten letras y espacios.')
+}
+
+const businessNameSchema = z.string()
+  .trim()
+  .min(1, 'Business name es obligatorio.')
+  .regex(/^[\p{L}\p{M}0-9 ]+$/u, 'Solo se permiten letras, numeros y espacios.')
+
+const emailSchema = z.string()
+  .trim()
+  .min(1, 'Email es obligatorio.')
+  .email('Ingresa un email valido.')
+
+const basePhoneSchema = z.string()
+  .trim()
+  .transform((value) => value.toUpperCase())
+  .refine((value) => value === '' || value === 'N/A' || /^\d{1,10}$/.test(value), {
+    message: 'Usa N/A o solo digitos, maximo 10.',
+  })
+
+const customerBasePhoneSchema = z.string()
+  .trim()
+  .transform((value) => value.toUpperCase())
+  .refine((value) => value === '' || value === 'N/A' || /^\d{10}$/.test(value), {
+    message: 'Usa N/A o ingresa exactamente 10 digitos.',
+  })
+
+const websiteSchema = z.string()
+  .trim()
+  .min(1, 'Website es obligatorio.')
+  .regex(
+    /^(https?:\/\/)?(www\.)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+(?:[/?#][^\s]*)?$/,
+    'Ingresa un website valido, por ejemplo www.example.com.ec.',
+  )
+
+const tenantNameSchema = z.string()
+  .trim()
+  .min(1, 'Tenant name es obligatorio.')
+  .regex(/^[A-Za-z0-9_]+$/, 'Se genera automaticamente con letras, numeros y guion bajo.')
+
+const requiredAddressSchema = z.string()
+  .trim()
+  .min(1, 'Address 1 es obligatorio.')
+  .max(500, 'Maximo 500 caracteres.')
+
+const optionalAddressSchema = z.string()
+  .trim()
+  .max(500, 'Maximo 500 caracteres.')
+
+const passwordSchema = z.string()
+  .refine((value) => value.trim().length > 0, 'Password es obligatorio.')
 
 function createEmptyBusiness(): CreateBusinessPayload {
   return {
@@ -371,7 +450,7 @@ export function CustomerCreateForm() {
           <legend>Customer contact</legend>
           <div className="form-grid">
             <TextInput label="Mobile phone" value={form.customer_contact.mobile_phone_number} required error={validationErrors['customer_contact.mobile_phone_number']} onChange={(value) => updateCustomerField('customer_contact', 'mobile_phone_number', value)} />
-            <TextInput label="Base phone" value={form.customer_contact.base_phone_number} required error={validationErrors['customer_contact.base_phone_number']} onChange={(value) => updateCustomerField('customer_contact', 'base_phone_number', value)} />
+            <TextInput label="Base phone" value={form.customer_contact.base_phone_number} error={validationErrors['customer_contact.base_phone_number']} onChange={(value) => updateCustomerField('customer_contact', 'base_phone_number', value)} />
             <TextInput label="Email" type="email" value={form.customer_contact.email} required error={validationErrors['customer_contact.email']} onChange={(value) => updateCustomerField('customer_contact', 'email', value)} />
           </div>
         </fieldset>
@@ -435,7 +514,7 @@ export function CustomerCreateForm() {
                     <TextInput label="City" value={businessItem.business_location.city} required error={validationErrors[businessPath('business_location.city')]} onChange={(value) => updateBusinessField(businessIndex, 'business_location', 'city', value)} />
                     <TextInput label="Province" value={businessItem.business_location.province} required error={validationErrors[businessPath('business_location.province')]} onChange={(value) => updateBusinessField(businessIndex, 'business_location', 'province', value)} />
                     <TextInput label="Address 1" value={businessItem.business_location.address1} required error={validationErrors[businessPath('business_location.address1')]} onChange={(value) => updateBusinessField(businessIndex, 'business_location', 'address1', value)} />
-                    <TextInput label="Address 2" value={businessItem.business_location.address2} required error={validationErrors[businessPath('business_location.address2')]} onChange={(value) => updateBusinessField(businessIndex, 'business_location', 'address2', value)} />
+                    <TextInput label="Address 2" value={businessItem.business_location.address2} error={validationErrors[businessPath('business_location.address2')]} onChange={(value) => updateBusinessField(businessIndex, 'business_location', 'address2', value)} />
                   </div>
                 </fieldset>
 
@@ -443,7 +522,7 @@ export function CustomerCreateForm() {
                   <legend>Business contact</legend>
                   <div className="form-grid">
                     <TextInput label="Mobile phone" value={businessItem.business_contact.mobile_phone_number} required error={validationErrors[businessPath('business_contact.mobile_phone_number')]} onChange={(value) => updateBusinessField(businessIndex, 'business_contact', 'mobile_phone_number', value)} />
-                    <TextInput label="Base phone" value={businessItem.business_contact.base_phone_number} required error={validationErrors[businessPath('business_contact.base_phone_number')]} onChange={(value) => updateBusinessField(businessIndex, 'business_contact', 'base_phone_number', value)} />
+                    <TextInput label="Base phone" value={businessItem.business_contact.base_phone_number} error={validationErrors[businessPath('business_contact.base_phone_number')]} onChange={(value) => updateBusinessField(businessIndex, 'business_contact', 'base_phone_number', value)} />
                     <TextInput label="Email" type="email" value={businessItem.business_contact.email} required error={validationErrors[businessPath('business_contact.email')]} onChange={(value) => updateBusinessField(businessIndex, 'business_contact', 'email', value)} />
                   </div>
                 </fieldset>
@@ -743,7 +822,7 @@ function getPlaceholder(label: string, type: string) {
     Country: 'Ej: Ecuador',
     City: 'Ej: Quito',
     'Mobile phone': 'Ej: 0999999999',
-    'Base phone': 'Ej: 022222222 o N/A',
+    'Base phone': 'Ej: 0222222222 o N/A',
     Email: 'Ej: ada@example.com',
     RUC: 'Ej: 0999999999001',
     Name: 'Ej: Comercio Agil',
@@ -772,30 +851,26 @@ function validateCreateForm(
 ): ValidationErrors {
   const errors: ValidationErrors = {}
 
-  validateText(errors, 'customer.identification', payload.customer.identification, {
-    includeRequired,
-    label: 'Identification',
-    pattern: /^[A-Za-z0-9]{1,15}$/,
-    message: 'Solo letras y digitos, maximo 15 caracteres.',
-  })
-  validateLetters(errors, 'customer.first_name', payload.customer.first_name, includeRequired, 'First name')
-  validateLetters(errors, 'customer.last_name', payload.customer.last_name, includeRequired, 'Last name')
-  validateLetters(errors, 'customer.country', payload.customer.country, includeRequired, 'Country')
-  validateLetters(errors, 'customer.city', payload.customer.city, includeRequired, 'City')
-  validatePhone(errors, 'customer_contact.mobile_phone_number', payload.customer_contact.mobile_phone_number, includeRequired)
-  validateBasePhone(errors, 'customer_contact.base_phone_number', payload.customer_contact.base_phone_number, includeRequired)
-  validateEmail(errors, 'customer_contact.email', payload.customer_contact.email, includeRequired)
+  validateZodField(errors, 'customer.identification', payload.customer.identification, identificationSchema, includeRequired)
+  validateZodField(errors, 'customer.first_name', payload.customer.first_name, lettersSchema('First name'), includeRequired)
+  validateZodField(errors, 'customer.last_name', payload.customer.last_name, lettersSchema('Last name'), includeRequired)
+  validateZodField(errors, 'customer.country', payload.customer.country, lettersSchema('Country'), includeRequired)
+  validateZodField(errors, 'customer.city', payload.customer.city, lettersSchema('City'), includeRequired)
+  validateZodField(errors, 'customer_contact.mobile_phone_number', payload.customer_contact.mobile_phone_number, customerMobilePhoneSchema, includeRequired)
+  validateZodField(errors, 'customer_contact.base_phone_number', payload.customer_contact.base_phone_number, customerBasePhoneSchema, true)
+  validateZodField(errors, 'customer_contact.email', payload.customer_contact.email, emailSchema, includeRequired)
 
   payload.businesses.forEach((businessItem, businessIndex) => {
     const path = (field: string) => `businesses.${businessIndex}.${field}`
 
-    validatePhone(errors, path('business.ruc'), businessItem.business.ruc, includeRequired, 'RUC')
+    validateZodField(errors, path('business.ruc'), businessItem.business.ruc, rucSchema, includeRequired)
     validateText(errors, path('business.the_name'), businessItem.business.the_name, {
       includeRequired,
       label: 'Business name',
       pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 ]+$/,
       message: 'Solo letras, numeros y espacios.',
     })
+    validateZodField(errors, path('business.the_name'), businessItem.business.the_name, businessNameSchema, includeRequired)
     validateBusinessType(
       errors,
       path('business.business_type'),
@@ -810,6 +885,8 @@ function validateCreateForm(
       pattern: /^[A-Za-z0-9_]+$/,
       message: 'Se genera automaticamente con letras, numeros y guion bajo.',
     })
+    validateZodField(errors, path('business.website'), businessItem.business.website, websiteSchema, includeRequired)
+    validateZodField(errors, path('business.tenant_name'), businessItem.business.tenant_name, tenantNameSchema, includeRequired)
     validateLetters(errors, path('business_location.country'), businessItem.business_location.country, includeRequired, 'Country')
     validateLetters(errors, path('business_location.city'), businessItem.business_location.city, includeRequired, 'City')
     validateLetters(errors, path('business_location.province'), businessItem.business_location.province, includeRequired, 'Province')
@@ -818,6 +895,14 @@ function validateCreateForm(
     validatePhone(errors, path('business_contact.mobile_phone_number'), businessItem.business_contact.mobile_phone_number, includeRequired)
     validateBasePhone(errors, path('business_contact.base_phone_number'), businessItem.business_contact.base_phone_number, includeRequired)
     validateEmail(errors, path('business_contact.email'), businessItem.business_contact.email, includeRequired)
+    validateZodField(errors, path('business_location.country'), businessItem.business_location.country, lettersSchema('Country'), includeRequired)
+    validateZodField(errors, path('business_location.city'), businessItem.business_location.city, lettersSchema('City'), includeRequired)
+    validateZodField(errors, path('business_location.province'), businessItem.business_location.province, lettersSchema('Province'), includeRequired)
+    validateZodField(errors, path('business_location.address1'), businessItem.business_location.address1, requiredAddressSchema, includeRequired)
+    validateZodField(errors, path('business_location.address2'), businessItem.business_location.address2, optionalAddressSchema, true)
+    validateZodField(errors, path('business_contact.mobile_phone_number'), businessItem.business_contact.mobile_phone_number, phoneSchema, includeRequired)
+    validateZodField(errors, path('business_contact.base_phone_number'), businessItem.business_contact.base_phone_number, basePhoneSchema, true)
+    validateZodField(errors, path('business_contact.email'), businessItem.business_contact.email, emailSchema, includeRequired)
 
     if (businessItem.business_module.length === 0) {
       errors[path('business_module')] = 'Selecciona al menos un modulo.'
@@ -833,6 +918,10 @@ function validateCreateForm(
         pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/,
         message: 'Debe tener 12+ caracteres, mayuscula, minuscula, numero y simbolo.',
       })
+      validateZodField(errors, path(`business_user.${userIndex}.first_name`), user.first_name, lettersSchema('First name'), includeRequired)
+      validateZodField(errors, path(`business_user.${userIndex}.last_name`), user.last_name, lettersSchema('Last name'), includeRequired)
+      validateZodField(errors, path(`business_user.${userIndex}.user_name`), user.user_name, emailSchema, includeRequired)
+      validateZodField(errors, path(`business_user.${userIndex}.user_password`), user.user_password, passwordSchema, includeRequired)
     })
 
     validateNumber(errors, path('subscription.trial_days'), businessItem.subscription.trial_days, 1, 365)
@@ -850,6 +939,27 @@ function validateCreateForm(
   })
 
   return errors
+}
+
+function validateZodField(
+  errors: ValidationErrors,
+  path: string,
+  value: unknown,
+  schema: z.ZodType,
+  includeRequired: boolean,
+) {
+  if (!includeRequired && typeof value === 'string' && !value.trim()) {
+    delete errors[path]
+    return
+  }
+
+  const result = schema.safeParse(value)
+  if (result.success) {
+    delete errors[path]
+    return
+  }
+
+  errors[path] = result.error.issues[0]?.message ?? 'Valor invalido.'
 }
 
 function validateText(
@@ -984,7 +1094,7 @@ function validateNumber(
 
 function sanitizeCustomerValue(section: CustomerSection, field: string, value: string) {
   if (section === 'customer' && field === 'identification') {
-    return value.replace(/[^A-Za-z0-9]/g, '').slice(0, 15)
+    return onlyDigits(value, 10)
   }
 
   if (section === 'customer' && ['first_name', 'last_name', 'country', 'city'].includes(field)) {
@@ -992,7 +1102,7 @@ function sanitizeCustomerValue(section: CustomerSection, field: string, value: s
   }
 
   if (section === 'customer_contact' && field === 'mobile_phone_number') {
-    return onlyDigits(value, 15)
+    return onlyDigits(value, 10)
   }
 
   if (section === 'customer_contact' && field === 'base_phone_number') {
@@ -1004,7 +1114,7 @@ function sanitizeCustomerValue(section: CustomerSection, field: string, value: s
 
 function sanitizeBusinessValue(section: BusinessSection, field: string, value: string) {
   if (section === 'business' && field === 'ruc') {
-    return onlyDigits(value, 15)
+    return onlyDigits(value, 13)
   }
 
   if (section === 'business' && field === 'the_name') {
@@ -1024,11 +1134,11 @@ function sanitizeBusinessValue(section: BusinessSection, field: string, value: s
   }
 
   if (section === 'business_location' && ['address1', 'address2'].includes(field)) {
-    return value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,\-/]/g, '')
+    return value.slice(0, 500)
   }
 
   if (section === 'business_contact' && field === 'mobile_phone_number') {
-    return onlyDigits(value, 15)
+    return onlyDigits(value, 10)
   }
 
   if (section === 'business_contact' && field === 'base_phone_number') {
@@ -1065,7 +1175,7 @@ function sanitizeBasePhone(value: string) {
     return upperValue
   }
 
-  return onlyDigits(value, 15)
+  return onlyDigits(value, 10)
 }
 
 function toTenantName(value: string) {
@@ -1106,6 +1216,7 @@ function normalizeCreatePayload(payload: CreateCustomerPayload): CreateCustomerP
     },
     customer_contact: {
       ...payload.customer_contact,
+      base_phone_number: normalizeOptionalDefault(payload.customer_contact.base_phone_number),
       email: payload.customer_contact.email.trim().toLowerCase(),
     },
     businesses: payload.businesses.map((businessItem) => ({
@@ -1115,8 +1226,13 @@ function normalizeCreatePayload(payload: CreateCustomerPayload): CreateCustomerP
         ruc: businessItem.business.ruc.trim(),
         tenant_name: toTenantName(businessItem.business.tenant_name),
       },
+      business_location: {
+        ...businessItem.business_location,
+        address2: normalizeOptionalDefault(businessItem.business_location.address2),
+      },
       business_contact: {
         ...businessItem.business_contact,
+        base_phone_number: normalizeOptionalDefault(businessItem.business_contact.base_phone_number),
         email: businessItem.business_contact.email.trim().toLowerCase(),
       },
       business_user: businessItem.business_user.map((user) => ({
@@ -1125,6 +1241,10 @@ function normalizeCreatePayload(payload: CreateCustomerPayload): CreateCustomerP
       })),
     })),
   }
+}
+
+function normalizeOptionalDefault(value: string) {
+  return value.trim() || 'N/A'
 }
 
 function getCustomerErrorMessage(error: unknown) {

@@ -48,6 +48,19 @@ a {
   color: inherit;
 }
 
+table[class] > thead > tr > th {
+  color: var(--color-table-header-text);
+  background: var(--color-table-header-background);
+}
+
+table[class] > tbody > tr > td {
+  transition: background-color var(--transition-fast);
+}
+
+table[class] > tbody > tr:hover > td {
+  background: var(--color-table-row-hover);
+}
+
 #root {
   min-height: 100svh;
 }

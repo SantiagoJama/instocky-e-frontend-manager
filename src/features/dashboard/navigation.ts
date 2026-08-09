@@ -60,7 +60,7 @@ export const navigationSections: NavigationSection[] = [
       {
         id: 'business-types',
         label: 'Business types',
-        path: '/business/types',
+        path: '/business/business-types',
         icon: FiLayers,
         permission: 'businesses.types.read',
       },

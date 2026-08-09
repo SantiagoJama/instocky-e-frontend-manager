@@ -1118,7 +1118,7 @@ function BusinessEditFormModal({
           <TextInput label="City" value={form.business_location.city ?? ''} required error={errors['business_location.city']} onChange={(value) => updateField('business_location', 'city', value)} />
           <TextInput label="Province" value={form.business_location.province ?? ''} required error={errors['business_location.province']} onChange={(value) => updateField('business_location', 'province', value)} />
           <TextInput label="Address 1" value={form.business_location.address1 ?? ''} required error={errors['business_location.address1']} onChange={(value) => updateField('business_location', 'address1', value)} />
-          <TextInput label="Address 2" value={form.business_location.address2 ?? ''} required error={errors['business_location.address2']} onChange={(value) => updateField('business_location', 'address2', value)} />
+          <TextInput label="Address 2" value={form.business_location.address2 ?? ''} error={errors['business_location.address2']} onChange={(value) => updateField('business_location', 'address2', value)} />
         </div>
       </fieldset>
 
@@ -1126,7 +1126,7 @@ function BusinessEditFormModal({
         <legend>Business contact</legend>
         <div className="form-grid">
           <TextInput label="Mobile phone" value={form.business_contact.mobile_phone_number ?? ''} required error={errors['business_contact.mobile_phone_number']} onChange={(value) => updateField('business_contact', 'mobile_phone_number', value)} />
-          <TextInput label="Base phone" value={form.business_contact.base_phone_number ?? ''} required error={errors['business_contact.base_phone_number']} onChange={(value) => updateField('business_contact', 'base_phone_number', value)} />
+          <TextInput label="Base phone" value={form.business_contact.base_phone_number ?? ''} error={errors['business_contact.base_phone_number']} onChange={(value) => updateField('business_contact', 'base_phone_number', value)} />
           <TextInput label="Email" type="email" value={form.business_contact.email ?? ''} required error={errors['business_contact.email']} onChange={(value) => updateField('business_contact', 'email', value)} />
         </div>
       </fieldset>
